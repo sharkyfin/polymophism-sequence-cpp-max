@@ -92,6 +92,10 @@ public:
         }
 
         T Current() const override {
+            return CurrentRef();
+        }
+
+        const T& CurrentRef() const override {
             if (current == nullptr) {
                 throw EmptyCollectionException("LinkedList::Enumerator: no current element");
             }
@@ -187,7 +191,7 @@ public:
 
         int count = endIndex - startIndex + 1;
         for (int i = 0; i < count && enumerator->MoveNext(); ++i) {
-            result->Append(enumerator->Current());
+            result->Append(enumerator->CurrentRef());
         }
 
         return result.Release();
@@ -197,7 +201,7 @@ public:
         return length;
     }
 
-    void Append(T item) {
+    void Append(const T& item) {
         Node* node = new Node(item);
 
         if (length == 0) {
@@ -211,7 +215,7 @@ public:
         ++length;
     }
 
-    void Prepend(T item) {
+    void Prepend(const T& item) {
         Node* node = new Node(item);
 
         if (length == 0) {
@@ -225,7 +229,7 @@ public:
         ++length;
     }
 
-    void InsertAt(T item, int index) {
+    void InsertAt(const T& item, int index) {
         if (index < 0 || index > length) {
             throw IndexOutOfRangeException("LinkedList: index out of range in InsertAt");
         }
@@ -256,7 +260,7 @@ public:
         HeapCleaner<IEnumerator<T>> enumerator(list->GetEnumerator());
 
         while (enumerator->MoveNext()) {
-            result->Append(enumerator->Current());
+            result->Append(enumerator->CurrentRef());
         }
 
         return result.Release();

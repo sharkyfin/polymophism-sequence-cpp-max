@@ -5,6 +5,7 @@
 #include "immutable_array_sequence.hpp"
 #include "immutable_deque_sequence.hpp"
 #include "immutable_list_sequence.hpp"
+#include "matrix_solvers.hpp"
 #include "mutable_array_sequence.hpp"
 #include "mutable_deque_sequence.hpp"
 #include "mutable_list_sequence.hpp"
@@ -23,6 +24,17 @@ int ReadInt(const std::string& prompt) {
     return value;
 }
 
+double ReadDouble(const std::string& prompt) {
+    std::cout << prompt;
+    double value = 0.0;
+    while (!(std::cin >> value)) {
+        std::cin.clear();
+        std::cin.ignore(10000, '\n');
+        std::cout << "Некорректный ввод. Повторите: ";
+    }
+    return value;
+}
+
 void PrintSequence(const Sequence<int>* sequence) {
     if (sequence == nullptr) {
         std::cout << "Последовательность не создана.\n";
@@ -31,6 +43,17 @@ void PrintSequence(const Sequence<int>* sequence) {
 
     std::cout << "Длина: " << sequence->GetLength() << "\n";
     std::cout << "Элементы: " << *sequence << "\n";
+}
+
+void PrintDoubleDeque(const Deque<double>& values) {
+    std::cout << "[";
+    for (int i = 0; i < values.GetLength(); ++i) {
+        if (i > 0) {
+            std::cout << ", ";
+        }
+        std::cout << values.Get(i);
+    }
+    std::cout << "]";
 }
 
 void PrintPairSequence(const Sequence<Pair<int, int>>* sequence) {
@@ -140,6 +163,7 @@ void PrintCreationMenu() {
     std::cout << "5. Создать MutableDequeSequence\n";
     std::cout << "6. Создать ImmutableDequeSequence\n";
     std::cout << "7. Запустить все тесты\n";
+    std::cout << "8. Матричный режим\n";
     std::cout << "0. Выход\n";
 }
 
@@ -166,7 +190,142 @@ void PrintOperationsMenu() {
     std::cout << "19. PopFront (только для deque)\n";
     std::cout << "20. PopBack (только для deque)\n";
     std::cout << "21. Запустить все тесты\n";
+    std::cout << "22. Матричный режим\n";
     std::cout << "0. Выход\n";
+}
+
+SquareMatrix<double> CreateMatrixDemoMatrix() {
+    SquareMatrix<double> matrix(3, 0.0);
+    matrix.Set(0, 0, 3.0);
+    matrix.Set(0, 1, 2.0);
+    matrix.Set(0, 2, -4.0);
+    matrix.Set(1, 0, 2.0);
+    matrix.Set(1, 1, 3.0);
+    matrix.Set(1, 2, 3.0);
+    matrix.Set(2, 0, 5.0);
+    matrix.Set(2, 1, -3.0);
+    matrix.Set(2, 2, 1.0);
+    return matrix;
+}
+
+Deque<double> CreateMatrixDemoSolution() {
+    Deque<double> solution;
+    solution.Append(3.0);
+    solution.Append(1.0);
+    solution.Append(2.0);
+    return solution;
+}
+
+SquareMatrix<double> ReadSquareMatrix() {
+    int size = ReadInt("Введите размер квадратной матрицы: ");
+    if (size <= 0) {
+        throw InvalidArgumentException("Размер матрицы должен быть положительным");
+    }
+
+    SquareMatrix<double> matrix(size, 0.0);
+    for (int row = 0; row < size; ++row) {
+        for (int col = 0; col < size; ++col) {
+            matrix.Set(row, col, ReadDouble("A[" + std::to_string(row) + "][" +
+                                            std::to_string(col) + "]: "));
+        }
+    }
+
+    return matrix;
+}
+
+Deque<double> ReadRightSide(int size) {
+    Deque<double> rightSide;
+    for (int i = 0; i < size; ++i) {
+        rightSide.Append(ReadDouble("b[" + std::to_string(i) + "]: "));
+    }
+    return rightSide;
+}
+
+void PrintSolutionReport(const SquareMatrix<double>& matrix,
+                         const Deque<double>& rightSide,
+                         const Deque<double>& solution) {
+    std::cout << "x = ";
+    PrintDoubleDeque(solution);
+    std::cout << "\n";
+    std::cout << "Норма невязки ||Ax-b|| = " << ResidualNorm(matrix, solution, rightSide) << "\n";
+}
+
+void RunKnownMatrixDemo() {
+    SquareMatrix<double> matrix = CreateMatrixDemoMatrix();
+    Deque<double> exactSolution = CreateMatrixDemoSolution();
+    Deque<double> rightSide = Multiply(matrix, exactSolution);
+
+    std::cout << "A:\n" << matrix << "\n";
+    std::cout << "b = ";
+    PrintDoubleDeque(rightSide);
+    std::cout << "\n";
+
+    Deque<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
+    std::cout << "Gauss partial pivot:\n";
+    PrintSolutionReport(matrix, rightSide, gaussSolution);
+
+    LUDecompositionResult lu = LUDecompose(matrix);
+    Deque<double> luSolution = SolveViaLU(lu, rightSide);
+    std::cout << "LU:\n";
+    PrintSolutionReport(matrix, rightSide, luSolution);
+    std::cout << "L:\n" << lu.L.AsSquare() << "\n";
+    std::cout << "U:\n" << lu.U.AsSquare() << "\n";
+}
+
+void RunCustomGauss() {
+    SquareMatrix<double> matrix = ReadSquareMatrix();
+    Deque<double> rightSide = ReadRightSide(matrix.GetSize());
+    Deque<double> solution = SolveGaussPartialPivot(matrix, rightSide);
+    PrintSolutionReport(matrix, rightSide, solution);
+}
+
+void RunCustomLU() {
+    SquareMatrix<double> matrix = ReadSquareMatrix();
+    Deque<double> rightSide = ReadRightSide(matrix.GetSize());
+    LUDecompositionResult lu = LUDecompose(matrix);
+    Deque<double> solution = SolveViaLU(lu, rightSide);
+    PrintSolutionReport(matrix, rightSide, solution);
+    std::cout << "L:\n" << lu.L.AsSquare() << "\n";
+    std::cout << "U:\n" << lu.U.AsSquare() << "\n";
+}
+
+void PrintMatrixMenu() {
+    std::cout << "\n===== МАТРИЧНЫЙ РЕЖИМ =====\n";
+    std::cout << "1. Демо известной системы 3x3 (Gauss + LU)\n";
+    std::cout << "2. Решить свою систему методом Гаусса с выбором pivot\n";
+    std::cout << "3. Решить свою систему через LU без перестановок\n";
+    std::cout << "4. Запустить все тесты\n";
+    std::cout << "0. Назад\n";
+}
+
+void RunMatrixMenu() {
+    bool matrixMenuRunning = true;
+    while (matrixMenuRunning) {
+        PrintMatrixMenu();
+        int command = ReadInt("Выберите пункт: ");
+        switch (command) {
+            case 1:
+                RunKnownMatrixDemo();
+                break;
+            case 2:
+                RunCustomGauss();
+                break;
+            case 3:
+                RunCustomLU();
+                break;
+            case 4: {
+                bool ok = RunAllTests();
+                std::cout << (ok ? "Все тесты пройдены.\n" : "Есть упавшие тесты.\n");
+                break;
+            }
+            case 0:
+                matrixMenuRunning = false;
+                break;
+            default:
+                std::cout << "Неизвестный пункт меню.\n";
+                break;
+        }
+    }
 }
 
 int main() {
@@ -197,6 +356,10 @@ int main() {
                         } else {
                             std::cout << "Есть упавшие тесты.\n";
                         }
+                        break;
+                    }
+                    case 8: {
+                        RunMatrixMenu();
                         break;
                     }
                     case 0: {
@@ -446,6 +609,10 @@ int main() {
                     } else {
                         std::cout << "Есть упавшие тесты.\n";
                     }
+                    break;
+                }
+                case 22: {
+                    RunMatrixMenu();
                     break;
                 }
                 case 0: {

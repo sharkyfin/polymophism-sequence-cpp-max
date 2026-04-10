@@ -34,4 +34,10 @@ public:
         : LabException(msg) {}
 };
 
+class CalculationException : public LabException {
+public:
+    explicit CalculationException(const std::string& msg)
+        : LabException(msg) {}
+};
+
 #endif

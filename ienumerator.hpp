@@ -6,6 +6,7 @@ class IEnumerator {
 public:
     virtual bool MoveNext() = 0;
     virtual T Current() const = 0;
+    virtual const T& CurrentRef() const = 0;
     virtual void Reset() = 0;
     virtual ~IEnumerator() = default;
 };

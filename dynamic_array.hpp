@@ -64,6 +64,10 @@ public:
         }
 
         T Current() const override {
+            return CurrentRef();
+        }
+
+        const T& CurrentRef() const override {
             if (!started || index < 0 || index >= array->size) {
                 throw EmptyCollectionException("DynamicArray::Enumerator: no current element");
             }
@@ -75,6 +79,8 @@ public:
             started = false;
         }
     };
+
+    DynamicArray() : data(nullptr), size(0), capacity(0) {}
 
     DynamicArray(T* items, int count) : data(nullptr), size(0), capacity(0) {
         if (count < 0) {
@@ -161,6 +167,13 @@ public:
         return new Enumerator(this);
     }
 
+    T& Get(int index) {
+        if (index < 0 || index >= size) {
+            throw IndexOutOfRangeException("DynamicArray: index out of range");
+        }
+        return data[index];
+    }
+
     const T& Get(int index) const {
         if (index < 0 || index >= size) {
             throw IndexOutOfRangeException("DynamicArray: index out of range");
@@ -176,7 +189,15 @@ public:
         return capacity;
     }
 
-    void Set(int index, T value) {
+    T& operator[](int index) {
+        return Get(index);
+    }
+
+    const T& operator[](int index) const {
+        return Get(index);
+    }
+
+    void Set(int index, const T& value) {
         if (index < 0 || index >= size) {
             throw IndexOutOfRangeException("DynamicArray: index out of range");
         }
@@ -197,7 +218,7 @@ public:
         other.capacity = tempCapacity;
     }
 
-    void PushBack(T value) {
+    void PushBack(const T& value) {
         if (size == capacity) {
             int newCapacity = (capacity == 0) ? 1 : capacity * 2;
             Reallocate(newCapacity);

@@ -18,7 +18,7 @@ Sequence<Pair<T1, T2>>* Zip(const Sequence<T1>& first, const Sequence<T2>& secon
             break;
         }
 
-        result->Append(Pair<T1, T2>(firstEnumerator->Current(), secondEnumerator->Current()));
+        result->Append(Pair<T1, T2>(firstEnumerator->CurrentRef(), secondEnumerator->CurrentRef()));
     }
 
     return result.Release();
@@ -31,7 +31,7 @@ Pair<Sequence<T1>*, Sequence<T2>*> Unzip(const Sequence<Pair<T1, T2>>& zipped) {
     HeapCleaner<IEnumerator<Pair<T1, T2>>> enumerator(zipped.GetEnumerator());
 
     while (enumerator->MoveNext()) {
-        Pair<T1, T2> value = enumerator->Current();
+        const Pair<T1, T2>& value = enumerator->CurrentRef();
         first->Append(value.first);
         second->Append(value.second);
     }

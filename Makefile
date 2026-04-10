@@ -4,6 +4,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra
 BUILD_DIR = build
 APP = $(BUILD_DIR)/lab2
 TEST_APP = $(BUILD_DIR)/lab2_tests
+HEADERS = $(wildcard *.hpp)
 
 .PHONY: all run test tests clean
 
@@ -12,7 +13,7 @@ all: $(APP)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(APP): main.cpp tests.cpp | $(BUILD_DIR)
+$(APP): main.cpp tests.cpp $(HEADERS) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) main.cpp tests.cpp -o $(APP)
 
 run: $(APP)
@@ -24,7 +25,7 @@ test: $(TEST_APP)
 tests:
 	$(MAKE) test
 
-$(TEST_APP): tests.cpp | $(BUILD_DIR)
+$(TEST_APP): tests.cpp $(HEADERS) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -DTESTS_MAIN tests.cpp -o $(TEST_APP)
 
 clean:

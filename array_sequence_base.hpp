@@ -11,12 +11,12 @@ protected:
 
     virtual ArraySequenceBase<T>* Instance() = 0;
 
-    Sequence<T>* AppendInternal(T item) {
+    Sequence<T>* AppendInternal(const T& item) {
         data.PushBack(item);
         return this;
     }
 
-    Sequence<T>* PrependInternal(T item) {
+    Sequence<T>* PrependInternal(const T& item) {
         int oldSize = data.GetSize();
         data.Resize(oldSize + 1);
 
@@ -27,7 +27,7 @@ protected:
         return this;
     }
 
-    Sequence<T>* InsertAtInternal(T item, int index) {
+    Sequence<T>* InsertAtInternal(const T& item, int index) {
         int length = data.GetSize();
         if (index < 0 || index > length) {
             throw IndexOutOfRangeException("ArraySequenceBase: index out of range in InsertAt");
@@ -133,7 +133,7 @@ public:
         HeapCleaner<IEnumerator<T>> enumerator(list->GetEnumerator());
 
         while (enumerator->MoveNext()) {
-            this->AppendToResult(result.Ref(), enumerator->Current());
+            this->AppendToResult(result.Ref(), enumerator->CurrentRef());
         }
 
         return result.Release();

@@ -11,17 +11,17 @@ protected:
 
     virtual ListSequenceBase<T>* Instance() = 0;
 
-    Sequence<T>* AppendInternal(T item) {
+    Sequence<T>* AppendInternal(const T& item) {
         data.Append(item);
         return this;
     }
 
-    Sequence<T>* PrependInternal(T item) {
+    Sequence<T>* PrependInternal(const T& item) {
         data.Prepend(item);
         return this;
     }
 
-    Sequence<T>* InsertAtInternal(T item, int index) {
+    Sequence<T>* InsertAtInternal(const T& item, int index) {
         data.InsertAt(item, index);
         return this;
     }
@@ -55,7 +55,7 @@ public:
 
         int count = endIndex - startIndex + 1;
         for (int i = 0; i < count && enumerator->MoveNext(); ++i) {
-            this->AppendToResult(result.Ref(), enumerator->Current());
+            this->AppendToResult(result.Ref(), enumerator->CurrentRef());
         }
 
         return result.Release();
@@ -111,7 +111,7 @@ public:
         HeapCleaner<IEnumerator<T>> enumerator(list->GetEnumerator());
 
         while (enumerator->MoveNext()) {
-            this->AppendToResult(result.Ref(), enumerator->Current());
+            this->AppendToResult(result.Ref(), enumerator->CurrentRef());
         }
 
         return result.Release();

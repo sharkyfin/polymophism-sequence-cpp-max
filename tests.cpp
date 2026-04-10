@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 #include "dynamic_array.hpp"
 #include "deque.hpp"
@@ -9,6 +10,7 @@
 #include "immutable_deque_sequence.hpp"
 #include "immutable_list_sequence.hpp"
 #include "linked_list.hpp"
+#include "matrix_solvers.hpp"
 #include "mutable_array_sequence.hpp"
 #include "mutable_deque_sequence.hpp"
 #include "mutable_list_sequence.hpp"
@@ -46,6 +48,80 @@ void AssertIntSequenceEquals(const Sequence<int>* sequence,
     }
 }
 
+void AssertStringSequenceEquals(const Sequence<std::string>* sequence,
+                                const std::string* expected,
+                                int expectedLength,
+                                const std::string& messagePrefix) {
+    Assert(sequence != nullptr, messagePrefix + ": sequence is null");
+    Assert(sequence->GetLength() == expectedLength, messagePrefix + ": wrong length");
+
+    for (int i = 0; i < expectedLength; ++i) {
+        Assert(sequence->Get(i) == expected[i],
+               messagePrefix + ": wrong value at index " + std::to_string(i));
+    }
+}
+
+void AssertDoubleSequenceNear(const Sequence<double>* sequence,
+                              const double* expected,
+                              int expectedLength,
+                              double epsilon,
+                              const std::string& messagePrefix) {
+    Assert(sequence != nullptr, messagePrefix + ": sequence is null");
+    Assert(sequence->GetLength() == expectedLength, messagePrefix + ": wrong length");
+
+    for (int i = 0; i < expectedLength; ++i) {
+        double difference = sequence->Get(i) - expected[i];
+        if (difference < 0) {
+            difference = -difference;
+        }
+
+        Assert(difference <= epsilon,
+               messagePrefix + ": wrong value at index " + std::to_string(i));
+    }
+}
+
+void AssertDoubleNear(double actual,
+                      double expected,
+                      double epsilon,
+                      const std::string& message) {
+    double difference = actual - expected;
+    if (difference < 0) {
+        difference = -difference;
+    }
+
+    Assert(difference <= epsilon, message);
+}
+
+void AssertDoubleDequeNear(const Deque<double>& deque,
+                           const double* expected,
+                           int expectedLength,
+                           double epsilon,
+                           const std::string& messagePrefix) {
+    Assert(deque.GetLength() == expectedLength, messagePrefix + ": wrong length");
+
+    for (int i = 0; i < expectedLength; ++i) {
+        AssertDoubleNear(deque.Get(i), expected[i], epsilon,
+                         messagePrefix + ": wrong value at index " + std::to_string(i));
+    }
+}
+
+void AssertMatrixNear(const RectangularMatrix<double>& matrix,
+                      const double* expected,
+                      int expectedRows,
+                      int expectedCols,
+                      double epsilon,
+                      const std::string& messagePrefix) {
+    Assert(matrix.GetRows() == expectedRows, messagePrefix + ": wrong row count");
+    Assert(matrix.GetCols() == expectedCols, messagePrefix + ": wrong column count");
+
+    for (int row = 0; row < expectedRows; ++row) {
+        for (int col = 0; col < expectedCols; ++col) {
+            AssertDoubleNear(matrix.Get(row, col), expected[row * expectedCols + col], epsilon,
+                             messagePrefix + ": wrong value");
+        }
+    }
+}
+
 void AssertIntDequeEquals(const Deque<int>& deque,
                           const int* expected,
                           int expectedLength,
@@ -65,6 +141,20 @@ void TestDynamicArrayCreateAndGet() {
     Assert(arr.GetSize() == 3, "DynamicArray: wrong size after construction");
     Assert(arr.Get(0) == 1, "DynamicArray: wrong element at index 0");
     Assert(arr.Get(2) == 3, "DynamicArray: wrong element at index 2");
+}
+
+void TestDynamicArrayDefaultConstructorAndIndexOperator() {
+    DynamicArray<int> arr;
+
+    Assert(arr.GetSize() == 0, "DynamicArray: wrong size after default construction");
+    Assert(arr.GetCapacity() == 0, "DynamicArray: wrong capacity after default construction");
+
+    arr.PushBack(10);
+    arr.PushBack(20);
+
+    Assert(arr[0] == 10, "DynamicArray: wrong value from operator[]");
+    arr[1] = 99;
+    Assert(arr.Get(1) == 99, "DynamicArray: operator[] must allow mutation");
 }
 
 void TestDynamicArrayCopy() {
@@ -115,6 +205,54 @@ void TestDynamicArrayIndexErrors() {
         caught = true;
     }
     Assert(caught, "DynamicArray: out-of-range Get must throw");
+}
+
+void TestDynamicArrayNestedStorage() {
+    DynamicArray<DynamicArray<int>> rows(2);
+
+    rows[0] = DynamicArray<int>(3);
+    rows[1] = DynamicArray<int>(2);
+
+    rows[0][0] = 1;
+    rows[0][1] = 2;
+    rows[0][2] = 3;
+    rows.Get(1).Set(0, 4);
+    rows.Get(1).Set(1, 5);
+
+    Assert(rows.Get(0).GetSize() == 3, "DynamicArray nested: wrong first row size");
+    Assert(rows.Get(1).GetSize() == 2, "DynamicArray nested: wrong second row size");
+    Assert(rows[0][2] == 3, "DynamicArray nested: wrong value in first row");
+    Assert(rows[1][1] == 5, "DynamicArray nested: wrong value in second row");
+
+    DynamicArray<DynamicArray<int>> copy(rows);
+    rows[0][0] = 99;
+    Assert(copy[0][0] == 1, "DynamicArray nested: copy must be deep");
+
+    DynamicArray<int> thirdRow(1);
+    thirdRow[0] = 6;
+    rows.PushBack(thirdRow);
+    Assert(rows.GetSize() == 3, "DynamicArray nested: wrong outer size after PushBack");
+    Assert(rows[2][0] == 6, "DynamicArray nested: wrong pushed row");
+}
+
+void TestDynamicArrayStringAndDoubleStorage() {
+    DynamicArray<std::string> words;
+    words.PushBack("alpha");
+    words.PushBack("beta");
+    words.Set(1, "gamma");
+
+    Assert(words.GetSize() == 2, "DynamicArray typed: wrong string size");
+    Assert(words[0] == "alpha", "DynamicArray typed: wrong first string");
+    Assert(words[1] == "gamma", "DynamicArray typed: wrong second string");
+
+    DynamicArray<double> numbers;
+    numbers.PushBack(1.5);
+    numbers.PushBack(2.25);
+    numbers.PushBack(3.75);
+
+    Assert(numbers.GetSize() == 3, "DynamicArray typed: wrong double size");
+    Assert(numbers[0] == 1.5, "DynamicArray typed: wrong first double");
+    Assert(numbers[2] == 3.75, "DynamicArray typed: wrong third double");
 }
 
 void TestLinkedListAppendPrependInsertGet() {
@@ -214,6 +352,143 @@ void TestDequeIndexAndEmptyErrors() {
         caught = true;
     }
     Assert(caught, "Deque: out-of-range InsertAt must throw");
+}
+
+void TestDequeSegmentBoundaries() {
+    Deque<int> deque;
+
+    for (int i = 0; i < 20; ++i) {
+        deque.Append(i);
+    }
+
+    int expectedAfterAppend[20];
+    for (int i = 0; i < 20; ++i) {
+        expectedAfterAppend[i] = i;
+    }
+    AssertIntDequeEquals(deque, expectedAfterAppend, 20, "Deque: append across segments");
+
+    for (int i = 0; i < 9; ++i) {
+        deque.PopFront();
+    }
+    for (int i = 20; i < 32; ++i) {
+        deque.Append(i);
+    }
+
+    int expectedAfterMixed[23];
+    for (int i = 0; i < 23; ++i) {
+        expectedAfterMixed[i] = i + 9;
+    }
+    AssertIntDequeEquals(deque, expectedAfterMixed, 23, "Deque: append after segment pops");
+
+    for (int i = 8; i >= 0; --i) {
+        deque.Prepend(i);
+    }
+
+    int expectedAfterPrepend[32];
+    for (int i = 0; i < 32; ++i) {
+        expectedAfterPrepend[i] = i;
+    }
+    AssertIntDequeEquals(deque, expectedAfterPrepend, 32, "Deque: prepend across segments");
+}
+
+void TestDequeCopyAndInsertAcrossSegments() {
+    Deque<int> deque;
+    for (int i = 0; i < 18; ++i) {
+        deque.Append(i);
+    }
+
+    for (int i = 0; i < 5; ++i) {
+        deque.PopFront();
+    }
+    for (int i = 4; i >= 0; --i) {
+        deque.Prepend(i);
+    }
+
+    deque.InsertAt(999, 10);
+
+    int expected[19] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 999, 10, 11, 12, 13, 14, 15, 16, 17};
+    AssertIntDequeEquals(deque, expected, 19, "Deque: insert across segments");
+
+    Deque<int> copied(deque);
+    AssertIntDequeEquals(copied, expected, 19, "Deque: copy across segments");
+
+    Deque<int> assigned;
+    assigned = deque;
+    AssertIntDequeEquals(assigned, expected, 19, "Deque: assignment across segments");
+}
+
+void TestDequeMutableAccessForMatrixStorage() {
+    Deque<double> deque;
+    deque.Append(1.0);
+    deque.Append(2.0);
+    deque.Append(3.0);
+
+    deque.Set(1, 20.0);
+    deque[2] = 30.0;
+    deque.SwapElements(0, 2);
+
+    double expected[3] = {30.0, 20.0, 1.0};
+    AssertDoubleDequeNear(deque, expected, 3, 1e-9, "Deque mutable access");
+}
+
+void TestDequeMatrixStorageFactory() {
+    Deque<int> storage = Deque<int>::CreateForMatrix(3, 4, 7);
+    Assert(storage.GetLength() == 12, "Deque matrix storage: wrong length");
+
+    for (int i = 0; i < storage.GetLength(); ++i) {
+        Assert(storage.Get(i) == 7, "Deque matrix storage: wrong initial value");
+    }
+
+    for (int row = 0; row < 3; ++row) {
+        int* rowPointer = storage.GetMatrixRowPointer(row);
+        for (int col = 0; col < 4; ++col) {
+            rowPointer[col] = row * 10 + col;
+        }
+    }
+
+    Assert(storage.Get(6) == 12, "Deque matrix storage: row pointer access failed");
+
+    storage.SwapRowsMatrix(0, 2);
+    int expectedAfterRowSwap[12] = {20, 21, 22, 23, 10, 11, 12, 13, 0, 1, 2, 3};
+    for (int i = 0; i < 12; ++i) {
+        Assert(storage.Get(i) == expectedAfterRowSwap[i], "Deque matrix storage: row swap failed");
+    }
+
+    storage.Append(100);
+    storage.Prepend(-1);
+    Assert(storage.GetLength() == 14, "Deque matrix storage: append/prepend length failed");
+    Assert(storage.Get(0) == -1, "Deque matrix storage: prepend failed");
+    Assert(storage.Get(7) == 12, "Deque matrix storage: value moved incorrectly after prepend");
+    Assert(storage.Get(13) == 100, "Deque matrix storage: append failed");
+
+    bool caught = false;
+    try {
+        storage.GetMatrixRowPointer(0);
+    } catch (const LabException&) {
+        caught = true;
+    }
+    Assert(caught, "Deque matrix storage: row pointer must be disabled after append/prepend");
+
+    Deque<int> copied(storage);
+    Assert(copied.GetLength() == storage.GetLength(), "Deque matrix storage: copy length failed");
+    for (int i = 0; i < copied.GetLength(); ++i) {
+        Assert(copied.Get(i) == storage.Get(i), "Deque matrix storage: copy value failed");
+    }
+
+    Deque<std::string> fixedStorage = Deque<std::string>::CreateFixed(3, std::string("item"));
+    Assert(fixedStorage.GetLength() == 3, "Deque fixed storage: wrong length");
+    Assert(fixedStorage.Get(0) == "item" && fixedStorage.Get(2) == "item",
+           "Deque fixed storage: wrong values");
+    fixedStorage.Set(1, "changed");
+    Assert(fixedStorage.Get(1) == "changed", "Deque fixed storage: mutable access failed");
+
+    caught = false;
+    try {
+        Deque<int>::CreateForMatrix(0, 4, 1);
+    } catch (const LabException&) {
+        caught = true;
+    }
+    Assert(caught, "Deque matrix storage: zero rows must throw");
 }
 
 void TestSequenceInterfaceSubsequenceAndConcat() {
@@ -472,6 +747,23 @@ void TestIteration() {
     Assert(listSum == 10, "Iteration: wrong sum for list sequence");
 }
 
+void TestEnumeratorCurrentConstReference() {
+    std::string items[2] = {"alpha", "beta"};
+    MutableDequeSequence<std::string> seq(items, 2);
+    HeapCleaner<IEnumerator<std::string>> enumerator(seq.GetEnumerator());
+
+    static_assert(std::is_same<decltype(enumerator->Current()), std::string>::value,
+                  "IEnumerator::Current must return T by value");
+    static_assert(std::is_same<decltype(enumerator->CurrentRef()), const std::string&>::value,
+                  "IEnumerator::CurrentRef must return const T&");
+
+    Assert(enumerator->MoveNext(), "Enumerator Current const ref: MoveNext failed");
+    std::string firstCopy = enumerator->Current();
+    const std::string& first = enumerator->CurrentRef();
+    Assert(firstCopy == "alpha", "Enumerator Current copy: wrong first value");
+    Assert(first == "alpha", "Enumerator Current const ref: wrong first value");
+}
+
 void TestSplitWithoutDelimiters() {
     int items[3] = {1, 2, 3};
     MutableArraySequence<int> seq(items, 3);
@@ -657,6 +949,313 @@ void TestDequeSequencePopOperations() {
     delete popped;
 }
 
+void TestStringSequencesAcrossBackends() {
+    std::string items[3] = {"red", "green", "blue"};
+    MutableArraySequence<std::string> arraySeq(items, 3);
+    ImmutableListSequence<std::string> listSeq(items, 3);
+    MutableDequeSequence<std::string> dequeSeq(items, 3);
+
+    Assert(arraySeq == listSeq, "String sequences: different backends must compare equal");
+    Assert(dequeSeq == listSeq, "String sequences: deque backend must compare equal");
+
+    Sequence<std::string>* mapped = dequeSeq.Map([](std::string value) { return value + "!"; });
+    std::string expectedMapped[3] = {"red!", "green!", "blue!"};
+    AssertStringSequenceEquals(mapped, expectedMapped, 3, "String sequences: map");
+
+    Sequence<std::string>* filtered = arraySeq.Where([](const std::string& value) {
+        return value.size() > 3;
+    });
+    std::string expectedFiltered[2] = {"green", "blue"};
+    AssertStringSequenceEquals(filtered, expectedFiltered, 2, "String sequences: where");
+
+    Sequence<std::string>* concat = dequeSeq.Concat(&listSeq);
+    std::string expectedConcat[6] = {"red", "green", "blue", "red", "green", "blue"};
+    AssertStringSequenceEquals(concat, expectedConcat, 6, "String sequences: concat");
+
+    delete mapped;
+    delete filtered;
+    delete concat;
+}
+
+void TestDoubleDequeSequenceAlgorithms() {
+    double items[4] = {1.5, 2.5, 3.5, 4.5};
+    MutableDequeSequence<double> seq(items, 4);
+
+    Sequence<double>* mapped = seq.Map([](double value) { return value + 0.5; });
+    double expectedMapped[4] = {2.0, 3.0, 4.0, 5.0};
+    AssertDoubleSequenceNear(mapped, expectedMapped, 4, 1e-9, "Double deque: map");
+
+    Sequence<double>* filtered = seq.Where([](double value) { return value >= 3.0; });
+    double expectedFiltered[2] = {3.5, 4.5};
+    AssertDoubleSequenceNear(filtered, expectedFiltered, 2, 1e-9, "Double deque: where");
+
+    double reduced = seq.Reduce([](double left, double right) { return left + right; });
+    double expectedReduced = 12.0;
+    double difference = reduced - expectedReduced;
+    if (difference < 0) {
+        difference = -difference;
+    }
+    Assert(difference <= 1e-9, "Double deque: reduce");
+
+    Sequence<double>* sliced = seq.Slice(1, 2);
+    double expectedSliced[2] = {1.5, 4.5};
+    AssertDoubleSequenceNear(sliced, expectedSliced, 2, 1e-9, "Double deque: slice");
+
+    delete mapped;
+    delete filtered;
+    delete sliced;
+}
+
+void TestMatrixInvalidSizes() {
+    RectangularMatrix<double> empty;
+    Assert(empty.GetRows() == 0 && empty.GetCols() == 0,
+           "RectangularMatrix: default constructor must create empty matrix");
+
+    bool caught = false;
+    try {
+        RectangularMatrix<double> matrix(0, 3);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "RectangularMatrix: zero rows must throw");
+
+    caught = false;
+    try {
+        RectangularMatrix<double> matrix(3, 0);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "RectangularMatrix: zero columns must throw");
+
+    caught = false;
+    try {
+        RectangularMatrix<double> matrix(-1, 3);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "RectangularMatrix: negative rows must throw");
+
+    caught = false;
+    try {
+        RectangularMatrix<double> matrix(3, -1);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "RectangularMatrix: negative columns must throw");
+
+    caught = false;
+    try {
+        SquareMatrix<double> matrix(0);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "SquareMatrix: zero size must throw");
+
+    caught = false;
+    try {
+        SquareMatrix<double> matrix(-1);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "SquareMatrix: negative size must throw");
+
+    caught = false;
+    try {
+        DiagonalMatrix<double> matrix(0);
+        (void)matrix;
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "DiagonalMatrix: zero size must throw");
+}
+
+void TestRectangularMatrixBasicOperations() {
+    RectangularMatrix<double> matrix(2, 3, 0.0);
+    matrix.Set(0, 0, 1.0);
+    matrix.Set(0, 1, 2.0);
+    matrix.Set(0, 2, 3.0);
+    matrix.Set(1, 0, 4.0);
+    matrix.Set(1, 1, 5.0);
+    matrix.Set(1, 2, 6.0);
+
+    Assert(matrix.GetRows() == 2, "RectangularMatrix: wrong row count");
+    Assert(matrix.GetCols() == 3, "RectangularMatrix: wrong column count");
+    AssertDoubleNear(matrix.Get(1, 2), 6.0, 1e-9, "RectangularMatrix: wrong Get");
+
+    double* secondRowPointer = matrix.GetRowPointer(1);
+    secondRowPointer[1] = 50.0;
+    AssertDoubleNear(matrix.Get(1, 1), 50.0, 1e-9, "RectangularMatrix: row pointer access failed");
+
+    RectangularMatrix<double> copiedMatrix = matrix;
+    const double* copiedSecondRow = copiedMatrix.GetRowPointer(1);
+    AssertDoubleNear(copiedSecondRow[1], 50.0, 1e-9, "RectangularMatrix: copied row pointer access failed");
+
+    Deque<double> row = matrix.GetRow(0);
+    double expectedRow[3] = {1.0, 2.0, 3.0};
+    AssertDoubleDequeNear(row, expectedRow, 3, 1e-9, "RectangularMatrix: row extraction");
+
+    Deque<double> column = matrix.GetColumn(1);
+    double expectedColumn[2] = {2.0, 50.0};
+    AssertDoubleDequeNear(column, expectedColumn, 2, 1e-9, "RectangularMatrix: column extraction");
+
+    matrix.SwapRows(0, 1);
+    double expectedAfterSwap[6] = {4.0, 50.0, 6.0, 1.0, 2.0, 3.0};
+    AssertMatrixNear(matrix, expectedAfterSwap, 2, 3, 1e-9, "RectangularMatrix: SwapRows");
+}
+
+void TestSquareAndSpecialMatrices() {
+    SquareMatrix<double> identity = SquareMatrix<double>::Identity(3);
+    AssertDoubleNear(identity.Trace(), 3.0, 1e-9, "SquareMatrix: wrong trace");
+
+    TriangularMatrix<double> lower(3, TriangleKind::Lower);
+    lower.SetInsideTriangle(0, 0, 1.0);
+    lower.SetInsideTriangle(1, 0, 2.0);
+    lower.SetInsideTriangle(1, 1, 3.0);
+    AssertDoubleNear(lower.Get(0, 1), 0.0, 1e-9, "TriangularMatrix: value outside lower triangle");
+    AssertDoubleNear(lower.Get(1, 0), 2.0, 1e-9, "TriangularMatrix: value inside lower triangle");
+
+    bool caught = false;
+    try {
+        lower.SetInsideTriangle(0, 2, 10.0);
+    } catch (const LabException&) {
+        caught = true;
+    }
+    Assert(caught, "TriangularMatrix: setting outside triangle must throw");
+
+    SquareMatrix<double> almostUpper(2, 0.0);
+    almostUpper.Set(0, 0, 1.0);
+    almostUpper.Set(0, 1, 2.0);
+    almostUpper.Set(1, 0, 1e-15);
+    almostUpper.Set(1, 1, 3.0);
+    TriangularMatrix<double> upperWithTinyOutsideValue(almostUpper, TriangleKind::Upper);
+    AssertDoubleNear(upperWithTinyOutsideValue.Get(1, 0), 0.0, 1e-9,
+                     "TriangularMatrix: tiny double value outside triangle must be treated as zero");
+
+    DiagonalMatrix<double> diagonal(3);
+    diagonal.SetDiagonal(0, 2.0);
+    diagonal.SetDiagonal(1, 4.0);
+    diagonal.SetDiagonal(2, 8.0);
+    AssertDoubleNear(diagonal.Get(0, 1), 0.0, 1e-9, "DiagonalMatrix: off-diagonal value");
+    AssertDoubleNear(diagonal.Get(2, 2), 8.0, 1e-9, "DiagonalMatrix: diagonal value");
+
+    Deque<double> rightSide;
+    rightSide.Append(4.0);
+    rightSide.Append(8.0);
+    rightSide.Append(16.0);
+    Deque<double> solution = SolveDiagonal(diagonal, rightSide);
+    double expectedSolution[3] = {2.0, 2.0, 2.0};
+    AssertDoubleDequeNear(solution, expectedSolution, 3, 1e-9, "DiagonalMatrix: SolveDiagonal");
+}
+
+void TestMatrixAlgorithms() {
+    RectangularMatrix<double> left(2, 2, 0.0);
+    left.Set(0, 0, 1.0);
+    left.Set(0, 1, 2.0);
+    left.Set(1, 0, 3.0);
+    left.Set(1, 1, 4.0);
+
+    RectangularMatrix<double> right(2, 2, 0.0);
+    right.Set(0, 0, 2.0);
+    right.Set(0, 1, 0.0);
+    right.Set(1, 0, 1.0);
+    right.Set(1, 1, 2.0);
+
+    RectangularMatrix<double> product = Multiply(left, right);
+    double expectedProduct[4] = {4.0, 4.0, 10.0, 8.0};
+    AssertMatrixNear(product, expectedProduct, 2, 2, 1e-9, "MatrixAlgorithms: matrix multiply");
+
+    Deque<double> vector;
+    vector.Append(1.0);
+    vector.Append(2.0);
+    Deque<double> multipliedVector = Multiply(left, vector);
+    double expectedVector[2] = {5.0, 11.0};
+    AssertDoubleDequeNear(multipliedVector, expectedVector, 2, 1e-9,
+                          "MatrixAlgorithms: matrix-vector multiply");
+}
+
+SquareMatrix<double> CreateSolverMatrix() {
+    SquareMatrix<double> matrix(3, 0.0);
+    matrix.Set(0, 0, 3.0);
+    matrix.Set(0, 1, 2.0);
+    matrix.Set(0, 2, -4.0);
+    matrix.Set(1, 0, 2.0);
+    matrix.Set(1, 1, 3.0);
+    matrix.Set(1, 2, 3.0);
+    matrix.Set(2, 0, 5.0);
+    matrix.Set(2, 1, -3.0);
+    matrix.Set(2, 2, 1.0);
+    return matrix;
+}
+
+Deque<double> CreateKnownSolution() {
+    Deque<double> solution;
+    solution.Append(3.0);
+    solution.Append(1.0);
+    solution.Append(2.0);
+    return solution;
+}
+
+void TestMatrixSolversKnownSystem() {
+    SquareMatrix<double> matrix = CreateSolverMatrix();
+    Deque<double> expectedSolution = CreateKnownSolution();
+    Deque<double> rightSide = Multiply(matrix, expectedSolution);
+
+    Deque<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
+    double expected[3] = {3.0, 1.0, 2.0};
+    AssertDoubleDequeNear(gaussSolution, expected, 3, 1e-9,
+                          "MatrixSolvers: Gauss partial pivot");
+
+    LUDecompositionResult lu = LUDecompose(matrix);
+    Deque<double> luSolution = SolveViaLU(lu, rightSide);
+    AssertDoubleDequeNear(luSolution, expected, 3, 1e-9, "MatrixSolvers: LU solve");
+
+    RectangularMatrix<double> luProduct = Multiply(lu.L.AsSquare(), lu.U.AsSquare());
+    AssertDoubleNear(MaxAbsDifference(matrix, luProduct), 0.0, 1e-9,
+                     "MatrixSolvers: A must equal L*U");
+    AssertDoubleNear(ResidualNorm(matrix, luSolution, rightSide), 0.0, 1e-9,
+                     "MatrixSolvers: LU residual");
+}
+
+void TestMatrixSolversErrors() {
+    SquareMatrix<double> singular(2, 0.0);
+    singular.Set(0, 0, 1.0);
+    singular.Set(0, 1, 2.0);
+    singular.Set(1, 0, 2.0);
+    singular.Set(1, 1, 4.0);
+
+    Deque<double> rightSide;
+    rightSide.Append(3.0);
+    rightSide.Append(6.0);
+
+    bool caught = false;
+    try {
+        SolveGaussPartialPivot(singular, rightSide);
+    } catch (const CalculationException&) {
+        caught = true;
+    }
+    Assert(caught, "MatrixSolvers: singular system must throw");
+
+    SquareMatrix<double> needsPivot(2, 0.0);
+    needsPivot.Set(0, 0, 0.0);
+    needsPivot.Set(0, 1, 1.0);
+    needsPivot.Set(1, 0, 1.0);
+    needsPivot.Set(1, 1, 1.0);
+
+    caught = false;
+    try {
+        LUDecompose(needsPivot);
+    } catch (const CalculationException&) {
+        caught = true;
+    }
+    Assert(caught, "MatrixSolvers: LU without pivot must throw on zero pivot");
+}
+
 bool RunAllTests() {
     int passed = 0;
     int failed = 0;
@@ -668,15 +1267,22 @@ bool RunAllTests() {
 
     TestEntry tests[] = {
         {"DynamicArray: create/get", TestDynamicArrayCreateAndGet},
+        {"DynamicArray: default constructor/index operator", TestDynamicArrayDefaultConstructorAndIndexOperator},
         {"DynamicArray: copy", TestDynamicArrayCopy},
         {"DynamicArray: resize/set/get", TestDynamicArrayResizeSetGet},
         {"DynamicArray: push_back", TestDynamicArrayPushBack},
         {"DynamicArray: index errors", TestDynamicArrayIndexErrors},
+        {"DynamicArray: nested storage", TestDynamicArrayNestedStorage},
+        {"DynamicArray: string/double storage", TestDynamicArrayStringAndDoubleStorage},
         {"LinkedList: append/prepend/insert/get", TestLinkedListAppendPrependInsertGet},
         {"LinkedList: sublist/concat", TestLinkedListSubListAndConcat},
         {"Deque: append/prepend/insert/get", TestDequeAppendPrependInsertGet},
         {"Deque: wrap-around/pop", TestDequeWrapAroundAndPop},
         {"Deque: index and empty errors", TestDequeIndexAndEmptyErrors},
+        {"Deque: segment boundaries", TestDequeSegmentBoundaries},
+        {"Deque: copy and insert across segments", TestDequeCopyAndInsertAcrossSegments},
+        {"Deque: mutable access for matrix storage", TestDequeMutableAccessForMatrixStorage},
+        {"Deque: matrix storage factory", TestDequeMatrixStorageFactory},
         {"Sequence: abstraction", TestSequenceInterfaceSubsequenceAndConcat},
         {"MutableSequence: semantics", TestMutableSemantics},
         {"ImmutableArraySequence: semantics", TestImmutableArraySemantics},
@@ -695,6 +1301,7 @@ bool RunAllTests() {
         {"Where", TestWhereAndNoMatches},
         {"Find", TestFind},
         {"Iteration", TestIteration},
+        {"Enumerator: Current/CurrentRef", TestEnumeratorCurrentConstReference},
         {"Split: no delimiters", TestSplitWithoutDelimiters},
         {"Split: boundaries", TestSplitBoundaries},
         {"Slice: count=0", TestSliceCountZero},
@@ -706,6 +1313,14 @@ bool RunAllTests() {
         {"DequeSequence: subsequence/concat", TestDequeSequenceSubsequenceAndConcat},
         {"DequeSequence: algorithms", TestDequeSequenceAlgorithms},
         {"DequeSequence: pop operations", TestDequeSequencePopOperations},
+        {"String sequences: across backends", TestStringSequencesAcrossBackends},
+        {"Double deque: algorithms", TestDoubleDequeSequenceAlgorithms},
+        {"Matrix: invalid sizes", TestMatrixInvalidSizes},
+        {"RectangularMatrix: basic operations", TestRectangularMatrixBasicOperations},
+        {"Square/special matrices", TestSquareAndSpecialMatrices},
+        {"MatrixAlgorithms", TestMatrixAlgorithms},
+        {"MatrixSolvers: known system", TestMatrixSolversKnownSystem},
+        {"MatrixSolvers: errors", TestMatrixSolversErrors},
     };
 
     int testCount = static_cast<int>(sizeof(tests) / sizeof(tests[0]));

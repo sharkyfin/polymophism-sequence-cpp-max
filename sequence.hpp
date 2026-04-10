@@ -53,7 +53,7 @@ public:
         HeapCleaner<IEnumerator<T>> enumerator(GetEnumerator());
 
         while (enumerator->MoveNext()) {
-            AppendToResult(result.Ref(), mapper(enumerator->Current()));
+            AppendToResult(result.Ref(), mapper(enumerator->CurrentRef()));
         }
 
         return result.Release();
@@ -65,7 +65,7 @@ public:
         HeapCleaner<IEnumerator<T>> enumerator(GetEnumerator());
 
         while (enumerator->MoveNext()) {
-            T value = enumerator->Current();
+            const T& value = enumerator->CurrentRef();
             if (predicate(value)) {
                 AppendToResult(result.Ref(), value);
             }
@@ -85,9 +85,9 @@ public:
             throw EmptyCollectionException("Sequence: Reduce on empty sequence");
         }
 
-        T result = enumerator->Current();
+        T result = enumerator->CurrentRef();
         while (enumerator->MoveNext()) {
-            result = reducer(result, enumerator->Current());
+            result = reducer(result, enumerator->CurrentRef());
         }
 
         return result;
@@ -99,7 +99,7 @@ public:
         HeapCleaner<IEnumerator<T>> enumerator(GetEnumerator());
 
         while (enumerator->MoveNext()) {
-            result = folder(result, enumerator->Current());
+            result = folder(result, enumerator->CurrentRef());
         }
 
         return result;
@@ -111,7 +111,7 @@ public:
 
         int index = 0;
         while (enumerator->MoveNext()) {
-            if (predicate(enumerator->Current())) {
+            if (predicate(enumerator->CurrentRef())) {
                 return index;
             }
             ++index;
@@ -128,7 +128,7 @@ public:
 
         try {
             while (enumerator->MoveNext()) {
-                T value = enumerator->Current();
+                const T& value = enumerator->CurrentRef();
                 if (isDelimiter(value)) {
                     if (keepEmpty || currentPart->GetLength() > 0) {
                         int oldSize = parts.GetSize();
@@ -178,14 +178,14 @@ public:
                 if (replacement != nullptr) {
                     replacementEnumerator.Reset(replacement->GetEnumerator());
                     while (replacementEnumerator->MoveNext()) {
-                        AppendToResult(result.Ref(), replacementEnumerator->Current());
+                        AppendToResult(result.Ref(), replacementEnumerator->CurrentRef());
                     }
                     replacementEnumerator.Reset();
                 }
                 insertedReplacement = true;
             }
 
-            T value = sourceEnumerator->Current();
+            const T& value = sourceEnumerator->CurrentRef();
             if (position < index || position >= index + count) {
                 AppendToResult(result.Ref(), value);
             }
@@ -195,7 +195,7 @@ public:
         if (!insertedReplacement && replacement != nullptr) {
             replacementEnumerator.Reset(replacement->GetEnumerator());
             while (replacementEnumerator->MoveNext()) {
-                AppendToResult(result.Ref(), replacementEnumerator->Current());
+                AppendToResult(result.Ref(), replacementEnumerator->CurrentRef());
             }
         }
 
@@ -224,7 +224,7 @@ bool operator==(const Sequence<T>& left, const Sequence<T>& right) {
             break;
         }
 
-        if (leftEnumerator->Current() != rightEnumerator->Current()) {
+        if (leftEnumerator->CurrentRef() != rightEnumerator->CurrentRef()) {
             return false;
         }
     }
@@ -263,7 +263,7 @@ std::ostream& operator<<(std::ostream& output, const Sequence<T>& sequence) {
         if (!first) {
             output << ", ";
         }
-        output << enumerator->Current();
+        output << enumerator->CurrentRef();
         first = false;
     }
 
