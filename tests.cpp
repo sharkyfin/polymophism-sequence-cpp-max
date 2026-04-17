@@ -428,6 +428,10 @@ void TestDequeCopyAndInsertAcrossSegments() {
     Deque<int> assigned;
     assigned = deque;
     AssertIntDequeEquals(assigned, expected, 19, "Deque: assignment across segments");
+
+    deque.InsertAt(555, 2);
+    int expectedNearFront[20] = {0, 1, 555, 2, 3, 4, 5, 6, 7, 8, 9, 999, 10, 11, 12, 13, 14, 15, 16, 17};
+    AssertIntDequeEquals(deque, expectedNearFront, 20, "Deque: insert near front across segments");
 }
 
 void TestDequeMutableAccessForMatrixStorage() {

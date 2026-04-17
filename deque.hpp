@@ -400,16 +400,25 @@ public:
             return;
         }
 
-        Deque<T> newDeque;
-        for (int i = 0; i < index; ++i) {
-            newDeque.Append(Get(i));
-        }
-        newDeque.Append(item);
-        for (int i = index; i < length; ++i) {
-            newDeque.Append(Get(i));
+        int oldLength = length;
+
+        if (index < oldLength - index) {
+            T firstValue = GetFirst();
+            Prepend(firstValue);
+
+            for (int i = 0; i < index; ++i) {
+                GetElementAtLogicalIndex(i) = GetElementAtLogicalIndex(i + 1);
+            }
+        } else {
+            T lastValue = GetLast();
+            Append(lastValue);
+
+            for (int i = oldLength; i > index; --i) {
+                GetElementAtLogicalIndex(i) = GetElementAtLogicalIndex(i - 1);
+            }
         }
 
-        Swap(newDeque);
+        GetElementAtLogicalIndex(index) = item;
     }
 
     void PopFront() {
