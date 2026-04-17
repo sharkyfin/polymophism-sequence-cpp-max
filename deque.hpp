@@ -16,7 +16,7 @@ private:
     int firstIndex;
     int length;
     int segmentSize;
-    bool rowSegmentedStorage;
+    bool isMatrixStorage;
 
     int GetMapSize() const {
         return segments.GetSize();
@@ -71,12 +71,12 @@ private:
         firstSegment = newMapSize / 2;
         firstIndex = segmentSize / 2;
         length = 0;
-        rowSegmentedStorage = false;
+        isMatrixStorage = false;
         AllocateSegment(firstSegment);
     }
 
     void InitializeFixedStorage(int itemCount, const T& value, int newSegmentSize,
-                                bool newRowSegmentedStorage) {
+                                bool newIsMatrixStorage) {
         if (itemCount < 0) {
             throw InvalidArgumentException("Deque: negative fixed storage size");
         }
@@ -103,7 +103,7 @@ private:
         firstSegment = 0;
         firstIndex = 0;
         length = itemCount;
-        rowSegmentedStorage = newRowSegmentedStorage;
+        isMatrixStorage = newIsMatrixStorage;
     }
 
     void CheckIndex(int index) const {
@@ -113,7 +113,7 @@ private:
     }
 
     void CheckMatrixRowIndex(int row) const {
-        if (!rowSegmentedStorage || firstSegment != 0 || firstIndex != 0 ||
+        if (!isMatrixStorage || firstSegment != 0 || firstIndex != 0 ||
             segmentSize <= 0 || length % segmentSize != 0) {
             throw InvalidArgumentException("Deque: storage is not row-segmented");
         }
@@ -181,9 +181,9 @@ private:
         segmentSize = other.segmentSize;
         other.segmentSize = tempSegmentSize;
 
-        bool tempRowSegmentedStorage = rowSegmentedStorage;
-        rowSegmentedStorage = other.rowSegmentedStorage;
-        other.rowSegmentedStorage = tempRowSegmentedStorage;
+        bool tempIsMatrixStorage = isMatrixStorage;
+        isMatrixStorage = other.isMatrixStorage;
+        other.isMatrixStorage = tempIsMatrixStorage;
     }
 
 public:
@@ -227,12 +227,12 @@ public:
     };
 
     Deque() : segments(0), firstSegment(0), firstIndex(0), length(0),
-              segmentSize(defaultSegmentSize), rowSegmentedStorage(false) {
+              segmentSize(defaultSegmentSize), isMatrixStorage(false) {
         SetEmptyState(defaultMapSize);
     }
 
     Deque(T* items, int count) : segments(0), firstSegment(0), firstIndex(0), length(0),
-                                 segmentSize(defaultSegmentSize), rowSegmentedStorage(false) {
+                                 segmentSize(defaultSegmentSize), isMatrixStorage(false) {
         if (count < 0) {
             throw InvalidArgumentException("Deque: negative count");
         }
@@ -248,7 +248,7 @@ public:
 
     Deque(int count, const T& value, int customSegmentSize)
         : segments(0), firstSegment(0), firstIndex(0), length(0),
-          segmentSize(defaultSegmentSize), rowSegmentedStorage(false) {
+          segmentSize(defaultSegmentSize), isMatrixStorage(false) {
         InitializeFixedStorage(count, value, customSegmentSize, false);
     }
 
@@ -354,7 +354,7 @@ public:
     }
 
     void Append(const T& item) {
-        rowSegmentedStorage = false;
+        isMatrixStorage = false;
         EnsureMapForAppend();
 
         int targetSegmentIndex = firstSegment;
@@ -369,7 +369,7 @@ public:
     }
 
     void Prepend(const T& item) {
-        rowSegmentedStorage = false;
+        isMatrixStorage = false;
         EnsureMapForPrepend();
 
         if (length > 0) {
@@ -417,7 +417,7 @@ public:
             throw EmptyCollectionException("Deque: PopFront on empty deque");
         }
 
-        rowSegmentedStorage = false;
+        isMatrixStorage = false;
 
         if (length == 1) {
             SetEmptyState(GetMapSize());
@@ -440,7 +440,7 @@ public:
             throw EmptyCollectionException("Deque: PopBack on empty deque");
         }
 
-        rowSegmentedStorage = false;
+        isMatrixStorage = false;
 
         if (length == 1) {
             SetEmptyState(GetMapSize());
