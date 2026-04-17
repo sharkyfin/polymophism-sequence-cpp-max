@@ -4,6 +4,7 @@
 #include "exceptions.hpp"
 #include "matrix_common.hpp"
 #include "square_matrix.hpp"
+#include "vector.hpp"
 
 enum class TriangleKind {
     Lower,
@@ -117,6 +118,13 @@ public:
         : data(diagonal.GetLength(), T()), zero(T()) {
         for (int i = 0; i < diagonal.GetLength(); ++i) {
             SetDiagonal(i, diagonal.Get(i));
+        }
+    }
+
+    explicit DiagonalMatrix(const Vector<T>& diagonal)
+        : data(diagonal.GetSize(), T()), zero(T()) {
+        for (int i = 0; i < diagonal.GetSize(); ++i) {
+            SetDiagonal(i, diagonal[i]);
         }
     }
 

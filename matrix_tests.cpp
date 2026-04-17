@@ -90,13 +90,13 @@ void TestRectangularMatrixBasicOperations() {
     RectangularMatrix<double> copiedMatrix = matrix;
     AssertDoubleNear(copiedMatrix[1][1], 50.0, 1e-9, "RectangularMatrix: copied operator[][] access failed");
 
-    Deque<double> row = matrix.GetRow(0);
+    Vector<double> row = matrix.GetRow(0);
     double expectedRow[3] = {1.0, 2.0, 3.0};
-    AssertDoubleDequeNear(row, expectedRow, 3, 1e-9, "RectangularMatrix: row extraction");
+    AssertDoubleVectorNear(row, expectedRow, 3, 1e-9, "RectangularMatrix: row extraction");
 
-    Deque<double> column = matrix.GetColumn(1);
+    Vector<double> column = matrix.GetColumn(1);
     double expectedColumn[2] = {2.0, 50.0};
-    AssertDoubleDequeNear(column, expectedColumn, 2, 1e-9, "RectangularMatrix: column extraction");
+    AssertDoubleVectorNear(column, expectedColumn, 2, 1e-9, "RectangularMatrix: column extraction");
 
     matrix.SwapRows(0, 1);
     double expectedAfterSwap[6] = {4.0, 50.0, 6.0, 1.0, 2.0, 3.0};
@@ -138,13 +138,13 @@ void TestSquareAndSpecialMatrices() {
     AssertDoubleNear(diagonal.Get(0, 1), 0.0, 1e-9, "DiagonalMatrix: off-diagonal value");
     AssertDoubleNear(diagonal.Get(2, 2), 8.0, 1e-9, "DiagonalMatrix: diagonal value");
 
-    Deque<double> rightSide = Deque<double>::CreateVectorStorage(3, 0.0);
-    rightSide.Set(0, 4.0);
-    rightSide.Set(1, 8.0);
-    rightSide.Set(2, 16.0);
-    Deque<double> solution = SolveDiagonal(diagonal, rightSide);
+    Vector<double> rightSide(3, 0.0);
+    rightSide[0] = 4.0;
+    rightSide[1] = 8.0;
+    rightSide[2] = 16.0;
+    Vector<double> solution = SolveDiagonal(diagonal, rightSide);
     double expectedSolution[3] = {2.0, 2.0, 2.0};
-    AssertDoubleDequeNear(solution, expectedSolution, 3, 1e-9, "DiagonalMatrix: SolveDiagonal");
+    AssertDoubleVectorNear(solution, expectedSolution, 3, 1e-9, "DiagonalMatrix: SolveDiagonal");
 }
 
 void TestMatrixAlgorithms() {
@@ -164,12 +164,12 @@ void TestMatrixAlgorithms() {
     double expectedProduct[4] = {4.0, 4.0, 10.0, 8.0};
     AssertMatrixNear(product, expectedProduct, 2, 2, 1e-9, "MatrixAlgorithms: matrix multiply");
 
-    Deque<double> vector = Deque<double>::CreateVectorStorage(2, 0.0);
-    vector.Set(0, 1.0);
-    vector.Set(1, 2.0);
-    Deque<double> multipliedVector = Multiply(left, vector);
+    Vector<double> vector(2, 0.0);
+    vector[0] = 1.0;
+    vector[1] = 2.0;
+    Vector<double> multipliedVector = Multiply(left, vector);
     double expectedVector[2] = {5.0, 11.0};
-    AssertDoubleDequeNear(multipliedVector, expectedVector, 2, 1e-9,
+    AssertDoubleVectorNear(multipliedVector, expectedVector, 2, 1e-9,
                           "MatrixAlgorithms: matrix-vector multiply");
 }
 
@@ -187,27 +187,27 @@ SquareMatrix<double> CreateSolverMatrix() {
     return matrix;
 }
 
-Deque<double> CreateKnownSolution() {
-    Deque<double> solution = Deque<double>::CreateVectorStorage(3, 0.0);
-    solution.Set(0, 3.0);
-    solution.Set(1, 1.0);
-    solution.Set(2, 2.0);
+Vector<double> CreateKnownSolution() {
+    Vector<double> solution(3, 0.0);
+    solution[0] = 3.0;
+    solution[1] = 1.0;
+    solution[2] = 2.0;
     return solution;
 }
 
 void TestMatrixSolversKnownSystem() {
     SquareMatrix<double> matrix = CreateSolverMatrix();
-    Deque<double> expectedSolution = CreateKnownSolution();
-    Deque<double> rightSide = Multiply(matrix, expectedSolution);
+    Vector<double> expectedSolution = CreateKnownSolution();
+    Vector<double> rightSide = Multiply(matrix, expectedSolution);
 
-    Deque<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
+    Vector<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
     double expected[3] = {3.0, 1.0, 2.0};
-    AssertDoubleDequeNear(gaussSolution, expected, 3, 1e-9,
+    AssertDoubleVectorNear(gaussSolution, expected, 3, 1e-9,
                           "MatrixSolvers: Gauss partial pivot");
 
     LUDecompositionResult lu = LUDecompose(matrix);
-    Deque<double> luSolution = SolveViaLU(lu, rightSide);
-    AssertDoubleDequeNear(luSolution, expected, 3, 1e-9, "MatrixSolvers: LU solve");
+    Vector<double> luSolution = SolveViaLU(lu, rightSide);
+    AssertDoubleVectorNear(luSolution, expected, 3, 1e-9, "MatrixSolvers: LU solve");
 
     RectangularMatrix<double> luProduct = Multiply(lu.L.AsSquare(), lu.U.AsSquare());
     AssertDoubleNear(MaxAbsDifference(matrix, luProduct), 0.0, 1e-9,
@@ -223,9 +223,9 @@ void TestMatrixSolversErrors() {
     singular.Set(1, 0, 2.0);
     singular.Set(1, 1, 4.0);
 
-    Deque<double> rightSide = Deque<double>::CreateVectorStorage(2, 0.0);
-    rightSide.Set(0, 3.0);
-    rightSide.Set(1, 6.0);
+    Vector<double> rightSide(2, 0.0);
+    rightSide[0] = 3.0;
+    rightSide[1] = 6.0;
 
     bool caught = false;
     try {

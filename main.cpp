@@ -45,13 +45,13 @@ void PrintSequence(const Sequence<int>* sequence) {
     std::cout << "Элементы: " << *sequence << "\n";
 }
 
-void PrintDoubleDeque(const Deque<double>& values) {
+void PrintDoubleVector(const Vector<double>& values) {
     std::cout << "[";
-    for (int i = 0; i < values.GetLength(); ++i) {
+    for (int i = 0; i < values.GetSize(); ++i) {
         if (i > 0) {
             std::cout << ", ";
         }
-        std::cout << values.Get(i);
+        std::cout << values[i];
     }
     std::cout << "]";
 }
@@ -208,11 +208,11 @@ SquareMatrix<double> CreateMatrixDemoMatrix() {
     return matrix;
 }
 
-Deque<double> CreateMatrixDemoSolution() {
-    Deque<double> solution = Deque<double>::CreateVectorStorage(3, 0.0);
-    solution.Set(0, 3.0);
-    solution.Set(1, 1.0);
-    solution.Set(2, 2.0);
+Vector<double> CreateMatrixDemoSolution() {
+    Vector<double> solution(3, 0.0);
+    solution[0] = 3.0;
+    solution[1] = 1.0;
+    solution[2] = 2.0;
     return solution;
 }
 
@@ -233,39 +233,39 @@ SquareMatrix<double> ReadSquareMatrix() {
     return matrix;
 }
 
-Deque<double> ReadRightSide(int size) {
-    Deque<double> rightSide = Deque<double>::CreateVectorStorage(size, 0.0);
+Vector<double> ReadRightSide(int size) {
+    Vector<double> rightSide(size, 0.0);
     for (int i = 0; i < size; ++i) {
-        rightSide.Set(i, ReadDouble("b[" + std::to_string(i) + "]: "));
+        rightSide[i] = ReadDouble("b[" + std::to_string(i) + "]: ");
     }
     return rightSide;
 }
 
 void PrintSolutionReport(const SquareMatrix<double>& matrix,
-                         const Deque<double>& rightSide,
-                         const Deque<double>& solution) {
+                         const Vector<double>& rightSide,
+                         const Vector<double>& solution) {
     std::cout << "x = ";
-    PrintDoubleDeque(solution);
+    PrintDoubleVector(solution);
     std::cout << "\n";
     std::cout << "Норма невязки ||Ax-b|| = " << ResidualNorm(matrix, solution, rightSide) << "\n";
 }
 
 void RunKnownMatrixDemo() {
     SquareMatrix<double> matrix = CreateMatrixDemoMatrix();
-    Deque<double> exactSolution = CreateMatrixDemoSolution();
-    Deque<double> rightSide = Multiply(matrix, exactSolution);
+    Vector<double> exactSolution = CreateMatrixDemoSolution();
+    Vector<double> rightSide = Multiply(matrix, exactSolution);
 
     std::cout << "A:\n" << matrix << "\n";
     std::cout << "b = ";
-    PrintDoubleDeque(rightSide);
+    PrintDoubleVector(rightSide);
     std::cout << "\n";
 
-    Deque<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
+    Vector<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
     std::cout << "Gauss partial pivot:\n";
     PrintSolutionReport(matrix, rightSide, gaussSolution);
 
     LUDecompositionResult lu = LUDecompose(matrix);
-    Deque<double> luSolution = SolveViaLU(lu, rightSide);
+    Vector<double> luSolution = SolveViaLU(lu, rightSide);
     std::cout << "LU:\n";
     PrintSolutionReport(matrix, rightSide, luSolution);
     std::cout << "L:\n" << lu.L.AsSquare() << "\n";
@@ -274,16 +274,16 @@ void RunKnownMatrixDemo() {
 
 void RunCustomGauss() {
     SquareMatrix<double> matrix = ReadSquareMatrix();
-    Deque<double> rightSide = ReadRightSide(matrix.GetSize());
-    Deque<double> solution = SolveGaussPartialPivot(matrix, rightSide);
+    Vector<double> rightSide = ReadRightSide(matrix.GetSize());
+    Vector<double> solution = SolveGaussPartialPivot(matrix, rightSide);
     PrintSolutionReport(matrix, rightSide, solution);
 }
 
 void RunCustomLU() {
     SquareMatrix<double> matrix = ReadSquareMatrix();
-    Deque<double> rightSide = ReadRightSide(matrix.GetSize());
+    Vector<double> rightSide = ReadRightSide(matrix.GetSize());
     LUDecompositionResult lu = LUDecompose(matrix);
-    Deque<double> solution = SolveViaLU(lu, rightSide);
+    Vector<double> solution = SolveViaLU(lu, rightSide);
     PrintSolutionReport(matrix, rightSide, solution);
     std::cout << "L:\n" << lu.L.AsSquare() << "\n";
     std::cout << "U:\n" << lu.U.AsSquare() << "\n";

@@ -12,6 +12,9 @@ class Deque;
 template <class T>
 class RectangularMatrix;
 
+template <class T>
+class Vector;
+
 struct TestEntry {
     const char* name;
     void (*func)();
@@ -36,6 +39,11 @@ void AssertDoubleNear(double actual,
                       double epsilon,
                       const std::string& message);
 void AssertDoubleDequeNear(const Deque<double>& deque,
+                           const double* expected,
+                           int expectedLength,
+                           double epsilon,
+                           const std::string& messagePrefix);
+void AssertDoubleVectorNear(const Vector<double>& vector,
                            const double* expected,
                            int expectedLength,
                            double epsilon,

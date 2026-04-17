@@ -3,8 +3,8 @@
 
 #include <iostream>
 
-#include "deque.hpp"
 #include "exceptions.hpp"
+#include "vector.hpp"
 
 template <class T>
 class RectangularMatrix {
@@ -108,23 +108,23 @@ public:
         data.SwapRowsMatrix(first, second);
     }
 
-    Deque<T> GetRow(int row) const {
+    Vector<T> GetRow(int row) const {
         CheckRow(row);
 
-        Deque<T> result = Deque<T>::CreateVectorStorage(cols, T());
+        Vector<T> result(cols, T());
         for (int col = 0; col < cols; ++col) {
-            result.Set(col, (*this)[row][col]);
+            result[col] = (*this)[row][col];
         }
 
         return result;
     }
 
-    Deque<T> GetColumn(int col) const {
+    Vector<T> GetColumn(int col) const {
         CheckColumn(col);
 
-        Deque<T> result = Deque<T>::CreateVectorStorage(rows, T());
+        Vector<T> result(rows, T());
         for (int row = 0; row < rows; ++row) {
-            result.Set(row, Get(row, col));
+            result[row] = Get(row, col);
         }
 
         return result;

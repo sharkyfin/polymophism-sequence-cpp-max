@@ -105,6 +105,19 @@ void AssertDoubleDequeNear(const Deque<double>& deque,
     }
 }
 
+void AssertDoubleVectorNear(const Vector<double>& vector,
+                           const double* expected,
+                           int expectedLength,
+                           double epsilon,
+                           const std::string& messagePrefix) {
+    Assert(vector.GetSize() == expectedLength, messagePrefix + ": wrong length");
+
+    for (int i = 0; i < expectedLength; ++i) {
+        AssertDoubleNear(vector[i], expected[i], epsilon,
+                         messagePrefix + ": wrong value at index " + std::to_string(i));
+    }
+}
+
 void AssertMatrixNear(const RectangularMatrix<double>& matrix,
                       const double* expected,
                       int expectedRows,

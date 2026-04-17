@@ -16,23 +16,23 @@ struct LUDecompositionResult {
         : L(lower), U(upper) {}
 };
 
-inline Deque<double> CreateDoubleDeque(int size, double value = 0.0) {
+inline Vector<double> CreateDoubleVector(int size, double value = 0.0) {
     if (size < 0) {
-        throw InvalidArgumentException("CreateDoubleDeque: negative size");
+        throw InvalidArgumentException("CreateDoubleVector: negative size");
     }
 
-    return Deque<double>::CreateVectorStorage(size, value);
+    return Vector<double>(size, value);
 }
 
-inline void ValidateVectorSize(const Deque<double>& vector, int expectedSize,
+inline void ValidateVectorSize(const Vector<double>& vector, int expectedSize,
                                const char* message) {
-    if (vector.GetLength() != expectedSize) {
+    if (vector.GetSize() != expectedSize) {
         throw InvalidArgumentException(message);
     }
 }
 
 inline void ValidateLinearSystem(const SquareMatrix<double>& matrix,
-                                 const Deque<double>& rightSide) {
+                                 const Vector<double>& rightSide) {
     if (matrix.GetSize() <= 0) {
         throw InvalidArgumentException("Matrix solver: matrix size must be positive");
     }
@@ -41,8 +41,8 @@ inline void ValidateLinearSystem(const SquareMatrix<double>& matrix,
                        "Matrix solver: matrix and right side sizes do not match");
 }
 
-inline Deque<double> SolveDiagonal(const DiagonalMatrix<double>& matrix,
-                                   const Deque<double>& rightSide,
+inline Vector<double> SolveDiagonal(const DiagonalMatrix<double>& matrix,
+                                    const Vector<double>& rightSide,
                                    double epsilon = MatrixDefaultEpsilon) {
     int size = matrix.GetSize();
     if (size <= 0) {
@@ -50,20 +50,20 @@ inline Deque<double> SolveDiagonal(const DiagonalMatrix<double>& matrix,
     }
     ValidateVectorSize(rightSide, size, "SolveDiagonal: matrix and right side sizes do not match");
 
-    Deque<double> result = CreateDoubleDeque(size, 0.0);
+    Vector<double> result = CreateDoubleVector(size, 0.0);
     for (int i = 0; i < size; ++i) {
         double diagonal = matrix.Get(i, i);
         if (IsNearZero(diagonal, epsilon)) {
             throw CalculationException("SolveDiagonal: zero or too small diagonal element");
         }
-        result.Set(i, rightSide.Get(i) / diagonal);
+        result[i] = rightSide[i] / diagonal;
     }
 
     return result;
 }
 
-inline Deque<double> ForwardSubstitution(const TriangularMatrix<double>& lower,
-                                         const Deque<double>& rightSide,
+inline Vector<double> ForwardSubstitution(const TriangularMatrix<double>& lower,
+                                          const Vector<double>& rightSide,
                                          double epsilon = MatrixDefaultEpsilon) {
     if (lower.GetKind() != TriangleKind::Lower) {
         throw InvalidArgumentException("ForwardSubstitution: matrix must be lower triangular");
@@ -76,11 +76,11 @@ inline Deque<double> ForwardSubstitution(const TriangularMatrix<double>& lower,
     ValidateVectorSize(rightSide, size,
                        "ForwardSubstitution: matrix and right side sizes do not match");
 
-    Deque<double> y = CreateDoubleDeque(size, 0.0);
+    Vector<double> y = CreateDoubleVector(size, 0.0);
     for (int row = 0; row < size; ++row) {
-        double sum = rightSide.Get(row);
+        double sum = rightSide[row];
         for (int col = 0; col < row; ++col) {
-            sum -= lower[row][col] * y.Get(col);
+            sum -= lower[row][col] * y[col];
         }
 
         double diagonal = lower[row][row];
@@ -88,14 +88,14 @@ inline Deque<double> ForwardSubstitution(const TriangularMatrix<double>& lower,
             throw CalculationException("ForwardSubstitution: zero or too small diagonal element");
         }
 
-        y.Set(row, sum / diagonal);
+        y[row] = sum / diagonal;
     }
 
     return y;
 }
 
-inline Deque<double> BackwardSubstitution(const TriangularMatrix<double>& upper,
-                                          const Deque<double>& rightSide,
+inline Vector<double> BackwardSubstitution(const TriangularMatrix<double>& upper,
+                                           const Vector<double>& rightSide,
                                           double epsilon = MatrixDefaultEpsilon) {
     if (upper.GetKind() != TriangleKind::Upper) {
         throw InvalidArgumentException("BackwardSubstitution: matrix must be upper triangular");
@@ -108,11 +108,11 @@ inline Deque<double> BackwardSubstitution(const TriangularMatrix<double>& upper,
     ValidateVectorSize(rightSide, size,
                        "BackwardSubstitution: matrix and right side sizes do not match");
 
-    Deque<double> x = CreateDoubleDeque(size, 0.0);
+    Vector<double> x = CreateDoubleVector(size, 0.0);
     for (int row = size - 1; row >= 0; --row) {
-        double sum = rightSide.Get(row);
+        double sum = rightSide[row];
         for (int col = row + 1; col < size; ++col) {
-            sum -= upper[row][col] * x.Get(col);
+            sum -= upper[row][col] * x[col];
         }
 
         double diagonal = upper[row][row];
@@ -120,7 +120,7 @@ inline Deque<double> BackwardSubstitution(const TriangularMatrix<double>& upper,
             throw CalculationException("BackwardSubstitution: zero or too small diagonal element");
         }
 
-        x.Set(row, sum / diagonal);
+        x[row] = sum / diagonal;
     }
 
     return x;
@@ -166,31 +166,31 @@ inline LUDecompositionResult LUDecompose(const SquareMatrix<double>& matrix,
     return LUDecompositionResult(lower, upper);
 }
 
-inline Deque<double> SolveViaLU(const LUDecompositionResult& lu,
-                                const Deque<double>& rightSide,
+inline Vector<double> SolveViaLU(const LUDecompositionResult& lu,
+                                 const Vector<double>& rightSide,
                                 double epsilon = MatrixDefaultEpsilon) {
     if (lu.L.GetSize() != lu.U.GetSize()) {
         throw InvalidArgumentException("SolveViaLU: incompatible L and U sizes");
     }
 
-    Deque<double> y = ForwardSubstitution(lu.L, rightSide, epsilon);
+    Vector<double> y = ForwardSubstitution(lu.L, rightSide, epsilon);
     return BackwardSubstitution(lu.U, y, epsilon);
 }
 
-inline Deque<double> SolveViaLU(const SquareMatrix<double>& matrix,
-                                const Deque<double>& rightSide,
+inline Vector<double> SolveViaLU(const SquareMatrix<double>& matrix,
+                                 const Vector<double>& rightSide,
                                 double epsilon = MatrixDefaultEpsilon) {
     ValidateLinearSystem(matrix, rightSide);
     return SolveViaLU(LUDecompose(matrix, epsilon), rightSide, epsilon);
 }
 
-inline Deque<double> SolveGaussNoPivot(const SquareMatrix<double>& matrix,
-                                       const Deque<double>& rightSide,
+inline Vector<double> SolveGaussNoPivot(const SquareMatrix<double>& matrix,
+                                        const Vector<double>& rightSide,
                                        double epsilon = MatrixDefaultEpsilon) {
     ValidateLinearSystem(matrix, rightSide);
 
     SquareMatrix<double> working = matrix;
-    Deque<double> b = rightSide;
+    Vector<double> b = rightSide;
     int size = working.GetSize();
 
     for (int pivot = 0; pivot < size; ++pivot) {
@@ -207,7 +207,7 @@ inline Deque<double> SolveGaussNoPivot(const SquareMatrix<double>& matrix,
                 working[row][col] = working[row][col] - factor * working[pivot][col];
             }
 
-            b.Set(row, b.Get(row) - factor * b.Get(pivot));
+            b[row] = b[row] - factor * b[pivot];
         }
     }
 
@@ -215,13 +215,13 @@ inline Deque<double> SolveGaussNoPivot(const SquareMatrix<double>& matrix,
     return BackwardSubstitution(upper, b, epsilon);
 }
 
-inline Deque<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
-                                            const Deque<double>& rightSide,
+inline Vector<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
+                                             const Vector<double>& rightSide,
                                             double epsilon = MatrixDefaultEpsilon) {
     ValidateLinearSystem(matrix, rightSide);
 
     SquareMatrix<double> working = matrix;
-    Deque<double> b = rightSide;
+    Vector<double> b = rightSide;
     int size = working.GetSize();
 
     for (int pivot = 0; pivot < size; ++pivot) {
@@ -252,7 +252,7 @@ inline Deque<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
                 working[row][col] = working[row][col] - factor * working[pivot][col];
             }
 
-            b.Set(row, b.Get(row) - factor * b.Get(pivot));
+            b[row] = b[row] - factor * b[pivot];
         }
     }
 

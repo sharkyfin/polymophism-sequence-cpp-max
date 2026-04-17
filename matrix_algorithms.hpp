@@ -5,6 +5,7 @@
 #include "matrix_common.hpp"
 #include "rectangular_matrix.hpp"
 #include "square_matrix.hpp"
+#include "vector.hpp"
 
 template <class T>
 RectangularMatrix<T> Add(const RectangularMatrix<T>& left,
@@ -73,47 +74,48 @@ RectangularMatrix<T> Multiply(const RectangularMatrix<T>& left,
     return result;
 }
 
-inline Deque<double> Multiply(const RectangularMatrix<double>& matrix,
-                              const Deque<double>& vector) {
-    if (matrix.GetCols() != vector.GetLength()) {
+template <class T>
+Vector<T> Multiply(const RectangularMatrix<T>& matrix,
+                   const Vector<T>& vector) {
+    if (matrix.GetCols() != vector.GetSize()) {
         throw InvalidArgumentException("Matrix-vector Multiply: incompatible sizes");
     }
 
-    Deque<double> result = Deque<double>::CreateVectorStorage(matrix.GetRows(), 0.0);
+    Vector<T> result(matrix.GetRows(), T());
     for (int row = 0; row < matrix.GetRows(); ++row) {
-        double sum = 0.0;
+        T sum = T();
         for (int col = 0; col < matrix.GetCols(); ++col) {
-            sum += matrix[row][col] * vector.Get(col);
+            sum += matrix[row][col] * vector[col];
         }
-        result.Set(row, sum);
+        result[row] = sum;
     }
 
     return result;
 }
 
-inline double L2Norm(const Deque<double>& vector) {
+inline double L2Norm(const Vector<double>& vector) {
     double sum = 0.0;
-    for (int i = 0; i < vector.GetLength(); ++i) {
-        sum += vector.Get(i) * vector.Get(i);
+    for (int i = 0; i < vector.GetSize(); ++i) {
+        sum += vector[i] * vector[i];
     }
 
     return SqrtValue(sum);
 }
 
 inline double ResidualNorm(const SquareMatrix<double>& matrix,
-                           const Deque<double>& solution,
-                           const Deque<double>& rightSide) {
-    if (matrix.GetRows() != rightSide.GetLength()) {
+                           const Vector<double>& solution,
+                           const Vector<double>& rightSide) {
+    if (matrix.GetRows() != rightSide.GetSize()) {
         throw InvalidArgumentException("ResidualNorm: incompatible matrix and right side sizes");
     }
 
-    Deque<double> residual = Multiply(matrix, solution);
-    if (residual.GetLength() != rightSide.GetLength()) {
+    Vector<double> residual = Multiply(matrix, solution);
+    if (residual.GetSize() != rightSide.GetSize()) {
         throw InvalidArgumentException("ResidualNorm: incompatible residual size");
     }
 
-    for (int i = 0; i < residual.GetLength(); ++i) {
-        residual.Set(i, residual.Get(i) - rightSide.Get(i));
+    for (int i = 0; i < residual.GetSize(); ++i) {
+        residual[i] = residual[i] - rightSide[i];
     }
 
     return L2Norm(residual);
