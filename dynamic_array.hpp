@@ -189,6 +189,14 @@ public:
         return capacity;
     }
 
+    T* Data() {
+        return data;
+    }
+
+    const T* Data() const {
+        return data;
+    }
+
     T& operator[](int index) {
         return Get(index);
     }

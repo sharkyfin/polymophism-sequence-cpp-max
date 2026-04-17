@@ -15,11 +15,8 @@ RectangularMatrix<T> Add(const RectangularMatrix<T>& left,
 
     RectangularMatrix<T> result(left.GetRows(), left.GetCols(), T());
     for (int row = 0; row < left.GetRows(); ++row) {
-        const T* leftRow = left.GetRowPointer(row);
-        const T* rightRow = right.GetRowPointer(row);
-        T* resultRow = result.GetRowPointer(row);
         for (int col = 0; col < left.GetCols(); ++col) {
-            resultRow[col] = leftRow[col] + rightRow[col];
+            result[row][col] = left[row][col] + right[row][col];
         }
     }
 
@@ -35,11 +32,8 @@ RectangularMatrix<T> Subtract(const RectangularMatrix<T>& left,
 
     RectangularMatrix<T> result(left.GetRows(), left.GetCols(), T());
     for (int row = 0; row < left.GetRows(); ++row) {
-        const T* leftRow = left.GetRowPointer(row);
-        const T* rightRow = right.GetRowPointer(row);
-        T* resultRow = result.GetRowPointer(row);
         for (int col = 0; col < left.GetCols(); ++col) {
-            resultRow[col] = leftRow[col] - rightRow[col];
+            result[row][col] = left[row][col] - right[row][col];
         }
     }
 
@@ -51,10 +45,8 @@ RectangularMatrix<T> MultiplyByScalar(const RectangularMatrix<T>& matrix,
                                       const T& scalar) {
     RectangularMatrix<T> result(matrix.GetRows(), matrix.GetCols(), T());
     for (int row = 0; row < matrix.GetRows(); ++row) {
-        const T* matrixRow = matrix.GetRowPointer(row);
-        T* resultRow = result.GetRowPointer(row);
         for (int col = 0; col < matrix.GetCols(); ++col) {
-            resultRow[col] = matrixRow[col] * scalar;
+            result[row][col] = matrix[row][col] * scalar;
         }
     }
 
@@ -70,13 +62,10 @@ RectangularMatrix<T> Multiply(const RectangularMatrix<T>& left,
 
     RectangularMatrix<T> result(left.GetRows(), right.GetCols(), T());
     for (int row = 0; row < left.GetRows(); ++row) {
-        const T* leftRow = left.GetRowPointer(row);
-        T* resultRow = result.GetRowPointer(row);
         for (int k = 0; k < left.GetCols(); ++k) {
-            T value = leftRow[k];
-            const T* rightRow = right.GetRowPointer(k);
+            T value = left[row][k];
             for (int col = 0; col < right.GetCols(); ++col) {
-                resultRow[col] = resultRow[col] + value * rightRow[col];
+                result[row][col] = result[row][col] + value * right[k][col];
             }
         }
     }
@@ -90,12 +79,11 @@ inline Deque<double> Multiply(const RectangularMatrix<double>& matrix,
         throw InvalidArgumentException("Matrix-vector Multiply: incompatible sizes");
     }
 
-    Deque<double> result = Deque<double>::CreateFixed(matrix.GetRows(), 0.0);
+    Deque<double> result = Deque<double>::CreateVectorStorage(matrix.GetRows(), 0.0);
     for (int row = 0; row < matrix.GetRows(); ++row) {
-        const double* matrixRow = matrix.GetRowPointer(row);
         double sum = 0.0;
         for (int col = 0; col < matrix.GetCols(); ++col) {
-            sum += matrixRow[col] * vector.Get(col);
+            sum += matrix[row][col] * vector.Get(col);
         }
         result.Set(row, sum);
     }
@@ -139,10 +127,8 @@ inline double MaxAbsDifference(const RectangularMatrix<double>& left,
 
     double maximum = 0.0;
     for (int row = 0; row < left.GetRows(); ++row) {
-        const double* leftRow = left.GetRowPointer(row);
-        const double* rightRow = right.GetRowPointer(row);
         for (int col = 0; col < left.GetCols(); ++col) {
-            double difference = AbsValue(leftRow[col] - rightRow[col]);
+            double difference = AbsValue(left[row][col] - right[row][col]);
             if (difference > maximum) {
                 maximum = difference;
             }
@@ -159,9 +145,8 @@ inline SquareMatrix<double> HilbertMatrix(int size) {
 
     SquareMatrix<double> result(size, 0.0);
     for (int row = 0; row < size; ++row) {
-        double* resultRow = result.GetRowPointer(row);
         for (int col = 0; col < size; ++col) {
-            resultRow[col] = 1.0 / (row + col + 1);
+            result[row][col] = 1.0 / (row + col + 1);
         }
     }
 

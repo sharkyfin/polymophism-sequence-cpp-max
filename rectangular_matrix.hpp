@@ -18,7 +18,7 @@ private:
             throw InvalidArgumentException("RectangularMatrix: matrix sizes must be positive");
         }
 
-        return Deque<T>::CreateForMatrix(rowCount, colCount, value);
+        return Deque<T>::CreateMatrixStorage(rowCount, colCount, value);
     }
 
     int Index(int row, int col) const {
@@ -78,13 +78,19 @@ public:
         return Get(row, col);
     }
 
+    T* operator[](int row) {
+        return GetRowPointer(row);
+    }
+
+    const T* operator[](int row) const {
+        return GetRowPointer(row);
+    }
+
     T* GetRowPointer(int row) {
-        CheckRow(row);
         return data.GetMatrixRowPointer(row);
     }
 
     const T* GetRowPointer(int row) const {
-        CheckRow(row);
         return data.GetMatrixRowPointer(row);
     }
 
@@ -95,9 +101,6 @@ public:
     }
 
     void SwapRows(int first, int second) {
-        CheckRow(first);
-        CheckRow(second);
-
         if (first == second) {
             return;
         }
@@ -108,10 +111,9 @@ public:
     Deque<T> GetRow(int row) const {
         CheckRow(row);
 
-        const T* rowPointer = GetRowPointer(row);
-        Deque<T> result;
+        Deque<T> result = Deque<T>::CreateVectorStorage(cols, T());
         for (int col = 0; col < cols; ++col) {
-            result.Append(rowPointer[col]);
+            result.Set(col, (*this)[row][col]);
         }
 
         return result;
@@ -120,9 +122,9 @@ public:
     Deque<T> GetColumn(int col) const {
         CheckColumn(col);
 
-        Deque<T> result;
+        Deque<T> result = Deque<T>::CreateVectorStorage(rows, T());
         for (int row = 0; row < rows; ++row) {
-            result.Append(Get(row, col));
+            result.Set(row, Get(row, col));
         }
 
         return result;
@@ -137,7 +139,7 @@ std::ostream& operator<<(std::ostream& output, const RectangularMatrix<T>& matri
             if (col > 0) {
                 output << " ";
             }
-            output << matrix.Get(row, col);
+            output << matrix[row][col];
         }
         output << "]";
         if (row + 1 < matrix.GetRows()) {

@@ -209,10 +209,10 @@ SquareMatrix<double> CreateMatrixDemoMatrix() {
 }
 
 Deque<double> CreateMatrixDemoSolution() {
-    Deque<double> solution;
-    solution.Append(3.0);
-    solution.Append(1.0);
-    solution.Append(2.0);
+    Deque<double> solution = Deque<double>::CreateVectorStorage(3, 0.0);
+    solution.Set(0, 3.0);
+    solution.Set(1, 1.0);
+    solution.Set(2, 2.0);
     return solution;
 }
 
@@ -234,9 +234,9 @@ SquareMatrix<double> ReadSquareMatrix() {
 }
 
 Deque<double> ReadRightSide(int size) {
-    Deque<double> rightSide;
+    Deque<double> rightSide = Deque<double>::CreateVectorStorage(size, 0.0);
     for (int i = 0; i < size; ++i) {
-        rightSide.Append(ReadDouble("b[" + std::to_string(i) + "]: "));
+        rightSide.Set(i, ReadDouble("b[" + std::to_string(i) + "]: "));
     }
     return rightSide;
 }

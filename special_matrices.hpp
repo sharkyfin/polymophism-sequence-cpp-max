@@ -84,11 +84,11 @@ public:
     }
 
     const T* GetRowPointer(int row) const {
-        if (row < 0 || row >= GetSize()) {
-            throw IndexOutOfRangeException("TriangularMatrix: row index out of range");
-        }
-
         return data.GetRowPointer(row);
+    }
+
+    const T* operator[](int row) const {
+        return GetRowPointer(row);
     }
 
     const SquareMatrix<T>& AsSquare() const {

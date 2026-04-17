@@ -21,7 +21,7 @@ inline Deque<double> CreateDoubleDeque(int size, double value = 0.0) {
         throw InvalidArgumentException("CreateDoubleDeque: negative size");
     }
 
-    return Deque<double>::CreateFixed(size, value);
+    return Deque<double>::CreateVectorStorage(size, value);
 }
 
 inline void ValidateVectorSize(const Deque<double>& vector, int expectedSize,
@@ -78,13 +78,12 @@ inline Deque<double> ForwardSubstitution(const TriangularMatrix<double>& lower,
 
     Deque<double> y = CreateDoubleDeque(size, 0.0);
     for (int row = 0; row < size; ++row) {
-        const double* lowerRow = lower.GetRowPointer(row);
         double sum = rightSide.Get(row);
         for (int col = 0; col < row; ++col) {
-            sum -= lowerRow[col] * y.Get(col);
+            sum -= lower[row][col] * y.Get(col);
         }
 
-        double diagonal = lowerRow[row];
+        double diagonal = lower[row][row];
         if (IsNearZero(diagonal, epsilon)) {
             throw CalculationException("ForwardSubstitution: zero or too small diagonal element");
         }
@@ -111,13 +110,12 @@ inline Deque<double> BackwardSubstitution(const TriangularMatrix<double>& upper,
 
     Deque<double> x = CreateDoubleDeque(size, 0.0);
     for (int row = size - 1; row >= 0; --row) {
-        const double* upperRow = upper.GetRowPointer(row);
         double sum = rightSide.Get(row);
         for (int col = row + 1; col < size; ++col) {
-            sum -= upperRow[col] * x.Get(col);
+            sum -= upper[row][col] * x.Get(col);
         }
 
-        double diagonal = upperRow[row];
+        double diagonal = upper[row][row];
         if (IsNearZero(diagonal, epsilon)) {
             throw CalculationException("BackwardSubstitution: zero or too small diagonal element");
         }
@@ -143,30 +141,25 @@ inline LUDecompositionResult LUDecompose(const SquareMatrix<double>& matrix,
     }
 
     for (int i = 0; i < size; ++i) {
-        const double* matrixRow = matrix.GetRowPointer(i);
-        const double* lowerCurrentRow = lower.GetRowPointer(i);
         for (int col = i; col < size; ++col) {
             double sum = 0.0;
             for (int k = 0; k < i; ++k) {
-                sum += lowerCurrentRow[k] * upper.GetRowPointer(k)[col];
+                sum += lower[i][k] * upper[k][col];
             }
-            upper.SetInsideTriangle(i, col, matrixRow[col] - sum);
+            upper.SetInsideTriangle(i, col, matrix[i][col] - sum);
         }
 
-        const double* upperCurrentRow = upper.GetRowPointer(i);
-        double pivot = upperCurrentRow[i];
+        double pivot = upper[i][i];
         if (IsNearZero(pivot, epsilon)) {
             throw CalculationException("LUDecompose: zero or too small pivot");
         }
 
         for (int row = i + 1; row < size; ++row) {
-            const double* matrixNextRow = matrix.GetRowPointer(row);
-            const double* lowerNextRow = lower.GetRowPointer(row);
             double sum = 0.0;
             for (int k = 0; k < i; ++k) {
-                sum += lowerNextRow[k] * upper.GetRowPointer(k)[i];
+                sum += lower[row][k] * upper[k][i];
             }
-            lower.SetInsideTriangle(row, i, (matrixNextRow[i] - sum) / pivot);
+            lower.SetInsideTriangle(row, i, (matrix[row][i] - sum) / pivot);
         }
     }
 
@@ -201,19 +194,17 @@ inline Deque<double> SolveGaussNoPivot(const SquareMatrix<double>& matrix,
     int size = working.GetSize();
 
     for (int pivot = 0; pivot < size; ++pivot) {
-        double* pivotRow = working.GetRowPointer(pivot);
-        double pivotValue = pivotRow[pivot];
+        double pivotValue = working[pivot][pivot];
         if (IsNearZero(pivotValue, epsilon)) {
             throw CalculationException("SolveGaussNoPivot: zero or too small pivot");
         }
 
         for (int row = pivot + 1; row < size; ++row) {
-            double* currentRow = working.GetRowPointer(row);
-            double factor = currentRow[pivot] / pivotValue;
-            currentRow[pivot] = 0.0;
+            double factor = working[row][pivot] / pivotValue;
+            working[row][pivot] = 0.0;
 
             for (int col = pivot + 1; col < size; ++col) {
-                currentRow[col] = currentRow[col] - factor * pivotRow[col];
+                working[row][col] = working[row][col] - factor * working[pivot][col];
             }
 
             b.Set(row, b.Get(row) - factor * b.Get(pivot));
@@ -235,10 +226,10 @@ inline Deque<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
 
     for (int pivot = 0; pivot < size; ++pivot) {
         int bestRow = pivot;
-        double bestValue = AbsValue(working.GetRowPointer(pivot)[pivot]);
+        double bestValue = AbsValue(working[pivot][pivot]);
 
         for (int row = pivot + 1; row < size; ++row) {
-            double candidate = AbsValue(working.GetRowPointer(row)[pivot]);
+            double candidate = AbsValue(working[row][pivot]);
             if (candidate > bestValue) {
                 bestValue = candidate;
                 bestRow = row;
@@ -252,15 +243,13 @@ inline Deque<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
         working.SwapRows(pivot, bestRow);
         b.SwapElements(pivot, bestRow);
 
-        double* pivotRow = working.GetRowPointer(pivot);
-        double pivotValue = pivotRow[pivot];
+        double pivotValue = working[pivot][pivot];
         for (int row = pivot + 1; row < size; ++row) {
-            double* currentRow = working.GetRowPointer(row);
-            double factor = currentRow[pivot] / pivotValue;
-            currentRow[pivot] = 0.0;
+            double factor = working[row][pivot] / pivotValue;
+            working[row][pivot] = 0.0;
 
             for (int col = pivot + 1; col < size; ++col) {
-                currentRow[col] = currentRow[col] - factor * pivotRow[col];
+                working[row][col] = working[row][col] - factor * working[pivot][col];
             }
 
             b.Set(row, b.Get(row) - factor * b.Get(pivot));

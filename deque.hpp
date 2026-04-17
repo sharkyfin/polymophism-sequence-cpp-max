@@ -1,8 +1,6 @@
 #ifndef DEQUE_H
 #define DEQUE_H
 
-#include <climits>
-
 #include "dynamic_array.hpp"
 #include "exceptions.hpp"
 #include "ienumerator.hpp"
@@ -13,18 +11,18 @@ private:
     static const int defaultMapSize = 8;
     static const int defaultSegmentSize = 8;
 
-    DynamicArray<T*> segments;
+    DynamicArray<DynamicArray<T>> segments;
     int firstSegment;
     int firstIndex;
     int length;
     int segmentSize;
     bool rowSegmentedStorage;
 
-    int MapSize() const {
+    int GetMapSize() const {
         return segments.GetSize();
     }
 
-    int UsedSegmentCount() const {
+    int GetUsedSegmentCount() const {
         if (length == 0) {
             return 1;
         }
@@ -32,51 +30,45 @@ private:
         return (firstIndex + length - 1) / segmentSize + 1;
     }
 
-    int SegmentIndex(int logicalIndex) const {
+    int GetSegmentIndex(int logicalIndex) const {
         return firstSegment + (firstIndex + logicalIndex) / segmentSize;
     }
 
-    int IndexInSegment(int logicalIndex) const {
+    int GetSegmentOffset(int logicalIndex) const {
         return (firstIndex + logicalIndex) % segmentSize;
     }
 
+    T& GetElementAtLogicalIndex(int logicalIndex) {
+        return segments[GetSegmentIndex(logicalIndex)][GetSegmentOffset(logicalIndex)];
+    }
+
+    const T& GetElementAtLogicalIndex(int logicalIndex) const {
+        return segments[GetSegmentIndex(logicalIndex)][GetSegmentOffset(logicalIndex)];
+    }
+
     void AllocateSegment(int segmentIndex) {
-        if (segments.Get(segmentIndex) == nullptr) {
-            segments.Set(segmentIndex, new T[segmentSize]);
+        if (segments[segmentIndex].GetSize() == 0) {
+            DynamicArray<T> newSegment(segmentSize);
+            segments[segmentIndex].Swap(newSegment);
         }
     }
 
-    void DeleteSegments() {
-        for (int i = 0; i < MapSize(); ++i) {
-            T* segment = segments.Get(i);
-            if (segment != nullptr) {
-                delete[] segment;
-                segments.Set(i, nullptr);
-            }
+    void ClearSegment(int segmentIndex) {
+        if (segments[segmentIndex].GetSize() > 0) {
+            DynamicArray<T> emptySegment;
+            segments[segmentIndex].Swap(emptySegment);
         }
     }
 
-    void InitializeMap(int mapSize) {
-        if (mapSize <= 0) {
+    void SetEmptyState(int newMapSize) {
+        if (newMapSize <= 0) {
             throw InvalidArgumentException("Deque: invalid map size");
         }
 
-        DynamicArray<T*> newSegments(mapSize);
-        for (int i = 0; i < mapSize; ++i) {
-            newSegments.Set(i, nullptr);
-        }
+        DynamicArray<DynamicArray<T>> newSegments(newMapSize);
 
         segments.Swap(newSegments);
-        firstSegment = mapSize / 2;
-        firstIndex = segmentSize / 2;
-        length = 0;
-        rowSegmentedStorage = false;
-        AllocateSegment(firstSegment);
-    }
-
-    void ResetEmptyState() {
-        DeleteSegments();
-        firstSegment = MapSize() / 2;
+        firstSegment = newMapSize / 2;
         firstIndex = segmentSize / 2;
         length = 0;
         rowSegmentedStorage = false;
@@ -93,33 +85,19 @@ private:
         }
 
         int neededSegments = (itemCount == 0) ? 1 : (itemCount - 1) / newSegmentSize + 1;
-        DynamicArray<T*> newSegments(neededSegments);
-        for (int i = 0; i < neededSegments; ++i) {
-            newSegments.Set(i, nullptr);
+        DynamicArray<DynamicArray<T>> newSegments(neededSegments);
+
+        for (int segment = 0; segment < neededSegments; ++segment) {
+            DynamicArray<T> newSegment(newSegmentSize);
+            newSegments[segment].Swap(newSegment);
         }
 
-        try {
-            for (int segment = 0; segment < neededSegments; ++segment) {
-                newSegments.Set(segment, new T[newSegmentSize]);
-            }
-
-            for (int i = 0; i < itemCount; ++i) {
-                int segmentIndex = i / newSegmentSize;
-                int indexInSegment = i % newSegmentSize;
-                newSegments.Get(segmentIndex)[indexInSegment] = value;
-            }
-        } catch (...) {
-            for (int segment = 0; segment < neededSegments; ++segment) {
-                T* allocatedSegment = newSegments.Get(segment);
-                if (allocatedSegment != nullptr) {
-                    delete[] allocatedSegment;
-                    newSegments.Set(segment, nullptr);
-                }
-            }
-            throw;
+        for (int i = 0; i < itemCount; ++i) {
+            int targetSegmentIndex = i / newSegmentSize;
+            int segmentOffset = i % newSegmentSize;
+            newSegments[targetSegmentIndex][segmentOffset] = value;
         }
 
-        DeleteSegments();
         segments.Swap(newSegments);
         segmentSize = newSegmentSize;
         firstSegment = 0;
@@ -147,20 +125,17 @@ private:
     }
 
     void GrowSegmentMap() {
-        int usedSegmentCount = UsedSegmentCount();
-        int newMapSize = (MapSize() > 0) ? MapSize() * 2 : defaultMapSize;
+        int usedSegmentCount = GetUsedSegmentCount();
+        int newMapSize = (GetMapSize() > 0) ? GetMapSize() * 2 : defaultMapSize;
         while (newMapSize <= usedSegmentCount + 1) {
             newMapSize *= 2;
         }
 
-        DynamicArray<T*> newSegments(newMapSize);
-        for (int i = 0; i < newMapSize; ++i) {
-            newSegments.Set(i, nullptr);
-        }
+        DynamicArray<DynamicArray<T>> newSegments(newMapSize);
 
         int newFirstSegment = (newMapSize - usedSegmentCount) / 2;
         for (int i = 0; i < usedSegmentCount; ++i) {
-            newSegments.Set(newFirstSegment + i, segments.Get(firstSegment + i));
+            newSegments[newFirstSegment + i].Swap(segments[firstSegment + i]);
         }
 
         segments.Swap(newSegments);
@@ -168,24 +143,14 @@ private:
     }
 
     void EnsureMapForAppend() {
-        if (length == 0) {
-            AllocateSegment(firstSegment);
-            return;
-        }
-
-        while (SegmentIndex(length) >= MapSize()) {
+        while (GetSegmentIndex(length) >= GetMapSize()) {
             GrowSegmentMap();
         }
 
-        AllocateSegment(SegmentIndex(length));
+        AllocateSegment(GetSegmentIndex(length));
     }
 
     void EnsureMapForPrepend() {
-        if (length == 0) {
-            AllocateSegment(firstSegment);
-            return;
-        }
-
         if (firstIndex > 0) {
             return;
         }
@@ -263,7 +228,7 @@ public:
 
     Deque() : segments(0), firstSegment(0), firstIndex(0), length(0),
               segmentSize(defaultSegmentSize), rowSegmentedStorage(false) {
-        InitializeMap(defaultMapSize);
+        SetEmptyState(defaultMapSize);
     }
 
     Deque(T* items, int count) : segments(0), firstSegment(0), firstIndex(0), length(0),
@@ -275,14 +240,9 @@ public:
             throw InvalidArgumentException("Deque: null items pointer with positive count");
         }
 
-        try {
-            InitializeMap(defaultMapSize);
-            for (int i = 0; i < count; ++i) {
-                Append(items[i]);
-            }
-        } catch (...) {
-            DeleteSegments();
-            throw;
+        SetEmptyState(defaultMapSize);
+        for (int i = 0; i < count; ++i) {
+            Append(items[i]);
         }
     }
 
@@ -292,66 +252,27 @@ public:
         InitializeFixedStorage(count, value, customSegmentSize, false);
     }
 
-    Deque(const Deque<T>& other) : segments(0), firstSegment(0), firstIndex(0), length(0),
-                                  segmentSize(defaultSegmentSize), rowSegmentedStorage(false) {
-        try {
-            if (other.rowSegmentedStorage) {
-                InitializeFixedStorage(other.length, T(), other.segmentSize, true);
-                for (int i = 0; i < other.length; ++i) {
-                    Set(i, other.Get(i));
-                }
-            } else {
-                segmentSize = other.segmentSize;
-                InitializeMap(other.MapSize() > defaultMapSize ? other.MapSize() : defaultMapSize);
-                firstIndex = other.firstIndex;
-                for (int i = 0; i < other.length; ++i) {
-                    Append(other.Get(i));
-                }
-            }
-        } catch (...) {
-            DeleteSegments();
-            throw;
-        }
-    }
+    Deque(const Deque<T>& other) = default;
 
-    Deque<T>& operator=(const Deque<T>& other) {
-        if (this == &other) {
-            return *this;
-        }
+    Deque<T>& operator=(const Deque<T>& other) = default;
 
-        Deque<T> copy(other);
-        Swap(copy);
-        return *this;
-    }
-
-    ~Deque() {
-        DeleteSegments();
-    }
-
-    static Deque<T> CreateForMatrix(int rowCount, int colCount, const T& value = T()) {
-        if (rowCount <= 0 || colCount <= 0) {
-            throw InvalidArgumentException("Deque: matrix sizes must be positive");
-        }
-        if (rowCount > INT_MAX / colCount) {
-            throw InvalidArgumentException("Deque: matrix storage is too large");
-        }
-
+    static Deque<T> CreateMatrixStorage(int rowCount, int colCount, const T& value = T()) {
         Deque<T> result;
         result.InitializeFixedStorage(rowCount * colCount, value, colCount, true);
         return result;
     }
 
-    static Deque<T> CreateFixed(int count, const T& value = T()) {
+    static Deque<T> CreateVectorStorage(int count, const T& value = T()) {
         if (count < 0) {
-            throw InvalidArgumentException("Deque: negative fixed storage size");
+            throw InvalidArgumentException("Deque: negative filled storage size");
         }
         if (count == 0) {
             return Deque<T>();
         }
 
         Deque<T> result;
-        int fixedSegmentSize = (count > defaultSegmentSize) ? count : defaultSegmentSize;
-        result.InitializeFixedStorage(count, value, fixedSegmentSize, false);
+        int filledSegmentSize = (count > defaultSegmentSize) ? count : defaultSegmentSize;
+        result.InitializeFixedStorage(count, value, filledSegmentSize, false);
         return result;
     }
 
@@ -360,7 +281,7 @@ public:
             throw EmptyCollectionException("Deque: deque is empty");
         }
 
-        return segments.Get(firstSegment)[firstIndex];
+        return segments[firstSegment][firstIndex];
     }
 
     const T& GetLast() const {
@@ -369,17 +290,17 @@ public:
         }
 
         int logicalIndex = length - 1;
-        return segments.Get(SegmentIndex(logicalIndex))[IndexInSegment(logicalIndex)];
+        return GetElementAtLogicalIndex(logicalIndex);
     }
 
     T& Get(int index) {
         CheckIndex(index);
-        return segments.Get(SegmentIndex(index))[IndexInSegment(index)];
+        return GetElementAtLogicalIndex(index);
     }
 
     const T& Get(int index) const {
         CheckIndex(index);
-        return segments.Get(SegmentIndex(index))[IndexInSegment(index)];
+        return GetElementAtLogicalIndex(index);
     }
 
     int GetLength() const {
@@ -388,12 +309,12 @@ public:
 
     T* GetMatrixRowPointer(int row) {
         CheckMatrixRowIndex(row);
-        return segments.Get(row);
+        return segments[row].Data();
     }
 
     const T* GetMatrixRowPointer(int row) const {
         CheckMatrixRowIndex(row);
-        return segments.Get(row);
+        return segments[row].Data();
     }
 
     T& operator[](int index) {
@@ -429,23 +350,21 @@ public:
             return;
         }
 
-        T* temporary = segments.Get(firstRow);
-        segments.Set(firstRow, segments.Get(secondRow));
-        segments.Set(secondRow, temporary);
+        segments[firstRow].Swap(segments[secondRow]);
     }
 
     void Append(const T& item) {
         rowSegmentedStorage = false;
         EnsureMapForAppend();
 
-        int segmentIndex = firstSegment;
-        int indexInSegment = firstIndex;
+        int targetSegmentIndex = firstSegment;
+        int segmentOffset = firstIndex;
         if (length > 0) {
-            segmentIndex = SegmentIndex(length);
-            indexInSegment = IndexInSegment(length);
+            targetSegmentIndex = GetSegmentIndex(length);
+            segmentOffset = GetSegmentOffset(length);
         }
 
-        segments.Get(segmentIndex)[indexInSegment] = item;
+        segments[targetSegmentIndex][segmentOffset] = item;
         ++length;
     }
 
@@ -462,7 +381,7 @@ public:
             }
         }
 
-        segments.Get(firstSegment)[firstIndex] = item;
+        segments[firstSegment][firstIndex] = item;
         ++length;
     }
 
@@ -501,7 +420,7 @@ public:
         rowSegmentedStorage = false;
 
         if (length == 1) {
-            ResetEmptyState();
+            SetEmptyState(GetMapSize());
             return;
         }
 
@@ -510,8 +429,7 @@ public:
         if (firstIndex == segmentSize) {
             firstIndex = 0;
             ++firstSegment;
-            delete[] segments.Get(oldFirstSegment);
-            segments.Set(oldFirstSegment, nullptr);
+            ClearSegment(oldFirstSegment);
         }
 
         --length;
@@ -525,16 +443,15 @@ public:
         rowSegmentedStorage = false;
 
         if (length == 1) {
-            ResetEmptyState();
+            SetEmptyState(GetMapSize());
             return;
         }
 
-        int oldLastSegment = SegmentIndex(length - 1);
+        int oldLastSegment = GetSegmentIndex(length - 1);
         --length;
-        int newLastSegment = SegmentIndex(length - 1);
+        int newLastSegment = GetSegmentIndex(length - 1);
         if (oldLastSegment != newLastSegment) {
-            delete[] segments.Get(oldLastSegment);
-            segments.Set(oldLastSegment, nullptr);
+            ClearSegment(oldLastSegment);
         }
     }
 

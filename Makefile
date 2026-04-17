@@ -13,8 +13,8 @@ all: $(APP)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(APP): main.cpp tests.cpp $(HEADERS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) main.cpp tests.cpp -o $(APP)
+$(APP): main.cpp tests.cpp matrix_tests.cpp $(HEADERS) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) main.cpp tests.cpp matrix_tests.cpp -o $(APP)
 
 run: $(APP)
 	./$(APP)
@@ -25,8 +25,8 @@ test: $(TEST_APP)
 tests:
 	$(MAKE) test
 
-$(TEST_APP): tests.cpp $(HEADERS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -DTESTS_MAIN tests.cpp -o $(TEST_APP)
+$(TEST_APP): tests.cpp matrix_tests.cpp $(HEADERS) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -DTESTS_MAIN tests.cpp matrix_tests.cpp -o $(TEST_APP)
 
 clean:
 	rm -f $(APP) $(TEST_APP) lab2 lab2_tests tests

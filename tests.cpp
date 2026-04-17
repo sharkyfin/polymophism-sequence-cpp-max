@@ -432,7 +432,7 @@ void TestDequeMutableAccessForMatrixStorage() {
 }
 
 void TestDequeMatrixStorageFactory() {
-    Deque<int> storage = Deque<int>::CreateForMatrix(3, 4, 7);
+    Deque<int> storage = Deque<int>::CreateMatrixStorage(3, 4, 7);
     Assert(storage.GetLength() == 12, "Deque matrix storage: wrong length");
 
     for (int i = 0; i < storage.GetLength(); ++i) {
@@ -475,20 +475,23 @@ void TestDequeMatrixStorageFactory() {
         Assert(copied.Get(i) == storage.Get(i), "Deque matrix storage: copy value failed");
     }
 
-    Deque<std::string> fixedStorage = Deque<std::string>::CreateFixed(3, std::string("item"));
-    Assert(fixedStorage.GetLength() == 3, "Deque fixed storage: wrong length");
-    Assert(fixedStorage.Get(0) == "item" && fixedStorage.Get(2) == "item",
-           "Deque fixed storage: wrong values");
-    fixedStorage.Set(1, "changed");
-    Assert(fixedStorage.Get(1) == "changed", "Deque fixed storage: mutable access failed");
+    Deque<std::string> filledStorage = Deque<std::string>::CreateVectorStorage(3, std::string("item"));
+    Assert(filledStorage.GetLength() == 3, "Deque vector storage: wrong length");
+    Assert(filledStorage.Get(0) == "item" && filledStorage.Get(2) == "item",
+           "Deque vector storage: wrong values");
+    filledStorage.Set(1, "changed");
+    Assert(filledStorage.Get(1) == "changed", "Deque vector storage: mutable access failed");
+
+    Deque<int> emptyMatrixStorage = Deque<int>::CreateMatrixStorage(0, 4, 1);
+    Assert(emptyMatrixStorage.GetLength() == 0, "Deque matrix storage: zero-row storage must be empty");
 
     caught = false;
     try {
-        Deque<int>::CreateForMatrix(0, 4, 1);
+        emptyMatrixStorage.GetMatrixRowPointer(0);
     } catch (const LabException&) {
         caught = true;
     }
-    Assert(caught, "Deque matrix storage: zero rows must throw");
+    Assert(caught, "Deque matrix storage: empty storage must reject row access");
 }
 
 void TestSequenceInterfaceSubsequenceAndConcat() {
@@ -1006,266 +1009,35 @@ void TestDoubleDequeSequenceAlgorithms() {
     delete sliced;
 }
 
-void TestMatrixInvalidSizes() {
-    RectangularMatrix<double> empty;
-    Assert(empty.GetRows() == 0 && empty.GetCols() == 0,
-           "RectangularMatrix: default constructor must create empty matrix");
+bool RunTestEntries(const TestEntry* tests, int testCount, int& passed, int& failed) {
+    int initialFailed = failed;
 
-    bool caught = false;
-    try {
-        RectangularMatrix<double> matrix(0, 3);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
+    for (int i = 0; i < testCount; ++i) {
+        try {
+            tests[i].func();
+            std::cout << "[PASS] " << tests[i].name << "\n";
+            ++passed;
+        } catch (const TestFailedException& e) {
+            std::cout << "[FAIL] " << tests[i].name << " -> " << e.GetMessage() << "\n";
+            ++failed;
+        } catch (const LabException& e) {
+            std::cout << "[FAIL] " << tests[i].name << " -> unexpected LabException: "
+                      << e.GetMessage() << "\n";
+            ++failed;
+        } catch (...) {
+            std::cout << "[FAIL] " << tests[i].name << " -> unknown exception\n";
+            ++failed;
+        }
     }
-    Assert(caught, "RectangularMatrix: zero rows must throw");
 
-    caught = false;
-    try {
-        RectangularMatrix<double> matrix(3, 0);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
-    }
-    Assert(caught, "RectangularMatrix: zero columns must throw");
-
-    caught = false;
-    try {
-        RectangularMatrix<double> matrix(-1, 3);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
-    }
-    Assert(caught, "RectangularMatrix: negative rows must throw");
-
-    caught = false;
-    try {
-        RectangularMatrix<double> matrix(3, -1);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
-    }
-    Assert(caught, "RectangularMatrix: negative columns must throw");
-
-    caught = false;
-    try {
-        SquareMatrix<double> matrix(0);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
-    }
-    Assert(caught, "SquareMatrix: zero size must throw");
-
-    caught = false;
-    try {
-        SquareMatrix<double> matrix(-1);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
-    }
-    Assert(caught, "SquareMatrix: negative size must throw");
-
-    caught = false;
-    try {
-        DiagonalMatrix<double> matrix(0);
-        (void)matrix;
-    } catch (const InvalidArgumentException&) {
-        caught = true;
-    }
-    Assert(caught, "DiagonalMatrix: zero size must throw");
-}
-
-void TestRectangularMatrixBasicOperations() {
-    RectangularMatrix<double> matrix(2, 3, 0.0);
-    matrix.Set(0, 0, 1.0);
-    matrix.Set(0, 1, 2.0);
-    matrix.Set(0, 2, 3.0);
-    matrix.Set(1, 0, 4.0);
-    matrix.Set(1, 1, 5.0);
-    matrix.Set(1, 2, 6.0);
-
-    Assert(matrix.GetRows() == 2, "RectangularMatrix: wrong row count");
-    Assert(matrix.GetCols() == 3, "RectangularMatrix: wrong column count");
-    AssertDoubleNear(matrix.Get(1, 2), 6.0, 1e-9, "RectangularMatrix: wrong Get");
-
-    double* secondRowPointer = matrix.GetRowPointer(1);
-    secondRowPointer[1] = 50.0;
-    AssertDoubleNear(matrix.Get(1, 1), 50.0, 1e-9, "RectangularMatrix: row pointer access failed");
-
-    RectangularMatrix<double> copiedMatrix = matrix;
-    const double* copiedSecondRow = copiedMatrix.GetRowPointer(1);
-    AssertDoubleNear(copiedSecondRow[1], 50.0, 1e-9, "RectangularMatrix: copied row pointer access failed");
-
-    Deque<double> row = matrix.GetRow(0);
-    double expectedRow[3] = {1.0, 2.0, 3.0};
-    AssertDoubleDequeNear(row, expectedRow, 3, 1e-9, "RectangularMatrix: row extraction");
-
-    Deque<double> column = matrix.GetColumn(1);
-    double expectedColumn[2] = {2.0, 50.0};
-    AssertDoubleDequeNear(column, expectedColumn, 2, 1e-9, "RectangularMatrix: column extraction");
-
-    matrix.SwapRows(0, 1);
-    double expectedAfterSwap[6] = {4.0, 50.0, 6.0, 1.0, 2.0, 3.0};
-    AssertMatrixNear(matrix, expectedAfterSwap, 2, 3, 1e-9, "RectangularMatrix: SwapRows");
-}
-
-void TestSquareAndSpecialMatrices() {
-    SquareMatrix<double> identity = SquareMatrix<double>::Identity(3);
-    AssertDoubleNear(identity.Trace(), 3.0, 1e-9, "SquareMatrix: wrong trace");
-
-    TriangularMatrix<double> lower(3, TriangleKind::Lower);
-    lower.SetInsideTriangle(0, 0, 1.0);
-    lower.SetInsideTriangle(1, 0, 2.0);
-    lower.SetInsideTriangle(1, 1, 3.0);
-    AssertDoubleNear(lower.Get(0, 1), 0.0, 1e-9, "TriangularMatrix: value outside lower triangle");
-    AssertDoubleNear(lower.Get(1, 0), 2.0, 1e-9, "TriangularMatrix: value inside lower triangle");
-
-    bool caught = false;
-    try {
-        lower.SetInsideTriangle(0, 2, 10.0);
-    } catch (const LabException&) {
-        caught = true;
-    }
-    Assert(caught, "TriangularMatrix: setting outside triangle must throw");
-
-    SquareMatrix<double> almostUpper(2, 0.0);
-    almostUpper.Set(0, 0, 1.0);
-    almostUpper.Set(0, 1, 2.0);
-    almostUpper.Set(1, 0, 1e-15);
-    almostUpper.Set(1, 1, 3.0);
-    TriangularMatrix<double> upperWithTinyOutsideValue(almostUpper, TriangleKind::Upper);
-    AssertDoubleNear(upperWithTinyOutsideValue.Get(1, 0), 0.0, 1e-9,
-                     "TriangularMatrix: tiny double value outside triangle must be treated as zero");
-
-    DiagonalMatrix<double> diagonal(3);
-    diagonal.SetDiagonal(0, 2.0);
-    diagonal.SetDiagonal(1, 4.0);
-    diagonal.SetDiagonal(2, 8.0);
-    AssertDoubleNear(diagonal.Get(0, 1), 0.0, 1e-9, "DiagonalMatrix: off-diagonal value");
-    AssertDoubleNear(diagonal.Get(2, 2), 8.0, 1e-9, "DiagonalMatrix: diagonal value");
-
-    Deque<double> rightSide;
-    rightSide.Append(4.0);
-    rightSide.Append(8.0);
-    rightSide.Append(16.0);
-    Deque<double> solution = SolveDiagonal(diagonal, rightSide);
-    double expectedSolution[3] = {2.0, 2.0, 2.0};
-    AssertDoubleDequeNear(solution, expectedSolution, 3, 1e-9, "DiagonalMatrix: SolveDiagonal");
-}
-
-void TestMatrixAlgorithms() {
-    RectangularMatrix<double> left(2, 2, 0.0);
-    left.Set(0, 0, 1.0);
-    left.Set(0, 1, 2.0);
-    left.Set(1, 0, 3.0);
-    left.Set(1, 1, 4.0);
-
-    RectangularMatrix<double> right(2, 2, 0.0);
-    right.Set(0, 0, 2.0);
-    right.Set(0, 1, 0.0);
-    right.Set(1, 0, 1.0);
-    right.Set(1, 1, 2.0);
-
-    RectangularMatrix<double> product = Multiply(left, right);
-    double expectedProduct[4] = {4.0, 4.0, 10.0, 8.0};
-    AssertMatrixNear(product, expectedProduct, 2, 2, 1e-9, "MatrixAlgorithms: matrix multiply");
-
-    Deque<double> vector;
-    vector.Append(1.0);
-    vector.Append(2.0);
-    Deque<double> multipliedVector = Multiply(left, vector);
-    double expectedVector[2] = {5.0, 11.0};
-    AssertDoubleDequeNear(multipliedVector, expectedVector, 2, 1e-9,
-                          "MatrixAlgorithms: matrix-vector multiply");
-}
-
-SquareMatrix<double> CreateSolverMatrix() {
-    SquareMatrix<double> matrix(3, 0.0);
-    matrix.Set(0, 0, 3.0);
-    matrix.Set(0, 1, 2.0);
-    matrix.Set(0, 2, -4.0);
-    matrix.Set(1, 0, 2.0);
-    matrix.Set(1, 1, 3.0);
-    matrix.Set(1, 2, 3.0);
-    matrix.Set(2, 0, 5.0);
-    matrix.Set(2, 1, -3.0);
-    matrix.Set(2, 2, 1.0);
-    return matrix;
-}
-
-Deque<double> CreateKnownSolution() {
-    Deque<double> solution;
-    solution.Append(3.0);
-    solution.Append(1.0);
-    solution.Append(2.0);
-    return solution;
-}
-
-void TestMatrixSolversKnownSystem() {
-    SquareMatrix<double> matrix = CreateSolverMatrix();
-    Deque<double> expectedSolution = CreateKnownSolution();
-    Deque<double> rightSide = Multiply(matrix, expectedSolution);
-
-    Deque<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
-    double expected[3] = {3.0, 1.0, 2.0};
-    AssertDoubleDequeNear(gaussSolution, expected, 3, 1e-9,
-                          "MatrixSolvers: Gauss partial pivot");
-
-    LUDecompositionResult lu = LUDecompose(matrix);
-    Deque<double> luSolution = SolveViaLU(lu, rightSide);
-    AssertDoubleDequeNear(luSolution, expected, 3, 1e-9, "MatrixSolvers: LU solve");
-
-    RectangularMatrix<double> luProduct = Multiply(lu.L.AsSquare(), lu.U.AsSquare());
-    AssertDoubleNear(MaxAbsDifference(matrix, luProduct), 0.0, 1e-9,
-                     "MatrixSolvers: A must equal L*U");
-    AssertDoubleNear(ResidualNorm(matrix, luSolution, rightSide), 0.0, 1e-9,
-                     "MatrixSolvers: LU residual");
-}
-
-void TestMatrixSolversErrors() {
-    SquareMatrix<double> singular(2, 0.0);
-    singular.Set(0, 0, 1.0);
-    singular.Set(0, 1, 2.0);
-    singular.Set(1, 0, 2.0);
-    singular.Set(1, 1, 4.0);
-
-    Deque<double> rightSide;
-    rightSide.Append(3.0);
-    rightSide.Append(6.0);
-
-    bool caught = false;
-    try {
-        SolveGaussPartialPivot(singular, rightSide);
-    } catch (const CalculationException&) {
-        caught = true;
-    }
-    Assert(caught, "MatrixSolvers: singular system must throw");
-
-    SquareMatrix<double> needsPivot(2, 0.0);
-    needsPivot.Set(0, 0, 0.0);
-    needsPivot.Set(0, 1, 1.0);
-    needsPivot.Set(1, 0, 1.0);
-    needsPivot.Set(1, 1, 1.0);
-
-    caught = false;
-    try {
-        LUDecompose(needsPivot);
-    } catch (const CalculationException&) {
-        caught = true;
-    }
-    Assert(caught, "MatrixSolvers: LU without pivot must throw on zero pivot");
+    return failed == initialFailed;
 }
 
 bool RunAllTests() {
     int passed = 0;
     int failed = 0;
 
-    struct TestEntry {
-        const char* name;
-        void (*func)();
-    };
-
-    TestEntry tests[] = {
+    TestEntry sequenceTests[] = {
         {"DynamicArray: create/get", TestDynamicArrayCreateAndGet},
         {"DynamicArray: default constructor/index operator", TestDynamicArrayDefaultConstructorAndIndexOperator},
         {"DynamicArray: copy", TestDynamicArrayCopy},
@@ -1315,33 +1087,11 @@ bool RunAllTests() {
         {"DequeSequence: pop operations", TestDequeSequencePopOperations},
         {"String sequences: across backends", TestStringSequencesAcrossBackends},
         {"Double deque: algorithms", TestDoubleDequeSequenceAlgorithms},
-        {"Matrix: invalid sizes", TestMatrixInvalidSizes},
-        {"RectangularMatrix: basic operations", TestRectangularMatrixBasicOperations},
-        {"Square/special matrices", TestSquareAndSpecialMatrices},
-        {"MatrixAlgorithms", TestMatrixAlgorithms},
-        {"MatrixSolvers: known system", TestMatrixSolversKnownSystem},
-        {"MatrixSolvers: errors", TestMatrixSolversErrors},
     };
 
-    int testCount = static_cast<int>(sizeof(tests) / sizeof(tests[0]));
-
-    for (int i = 0; i < testCount; ++i) {
-        try {
-            tests[i].func();
-            std::cout << "[PASS] " << tests[i].name << "\n";
-            ++passed;
-        } catch (const TestFailedException& e) {
-            std::cout << "[FAIL] " << tests[i].name << " -> " << e.GetMessage() << "\n";
-            ++failed;
-        } catch (const LabException& e) {
-            std::cout << "[FAIL] " << tests[i].name << " -> unexpected LabException: "
-                      << e.GetMessage() << "\n";
-            ++failed;
-        } catch (...) {
-            std::cout << "[FAIL] " << tests[i].name << " -> unknown exception\n";
-            ++failed;
-        }
-    }
+    int sequenceTestCount = static_cast<int>(sizeof(sequenceTests) / sizeof(sequenceTests[0]));
+    RunTestEntries(sequenceTests, sequenceTestCount, passed, failed);
+    RunMatrixTests(passed, failed);
 
     std::cout << "\nTests passed: " << passed << "\n";
     std::cout << "Tests failed: " << failed << "\n";
