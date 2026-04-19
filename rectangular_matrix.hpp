@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "exceptions.hpp"
+#include "segmented_buffer.hpp"
 #include "vector.hpp"
 
 template <class T>
@@ -11,18 +12,22 @@ class RectangularMatrix {
 private:
     int rows;
     int cols;
-    Deque<T> data;
+    SegmentedBuffer<T> data;
 
-    static Deque<T> CreateStorage(int rowCount, int colCount, const T& value) {
+    static SegmentedBuffer<T> CreateStorage(int rowCount, int colCount, const T& value) {
         if (rowCount <= 0 || colCount <= 0) {
             throw InvalidArgumentException("RectangularMatrix: matrix sizes must be positive");
         }
 
-        return Deque<T>::CreateMatrixStorage(rowCount, colCount, value);
-    }
+        SegmentedBuffer<T> storage(rowCount, colCount);
+        for (int row = 0; row < rowCount; ++row) {
+            storage.AllocateSegment(row);
+            for (int col = 0; col < colCount; ++col) {
+                storage.GetSegment(row)[col] = value;
+            }
+        }
 
-    int Index(int row, int col) const {
-        return row * cols + col;
+        return storage;
     }
 
     void CheckRow(int row) const {
@@ -61,17 +66,17 @@ public:
 
     const T& Get(int row, int col) const {
         CheckIndex(row, col);
-        return data.Get(Index(row, col));
+        return data.GetSegment(row)[col];
     }
 
     void Set(int row, int col, const T& value) {
         CheckIndex(row, col);
-        data.Set(Index(row, col), value);
+        data.GetSegment(row)[col] = value;
     }
 
     T& operator()(int row, int col) {
         CheckIndex(row, col);
-        return data[Index(row, col)];
+        return data.GetSegment(row)[col];
     }
 
     const T& operator()(int row, int col) const {
@@ -87,25 +92,32 @@ public:
     }
 
     T* GetRowPointer(int row) {
-        return data.GetMatrixRowPointer(row);
+        CheckRow(row);
+        return data.GetSegmentData(row);
     }
 
     const T* GetRowPointer(int row) const {
-        return data.GetMatrixRowPointer(row);
+        CheckRow(row);
+        return data.GetSegmentData(row);
     }
 
     void Fill(const T& value) {
-        for (int i = 0; i < data.GetLength(); ++i) {
-            data.Set(i, value);
+        for (int row = 0; row < rows; ++row) {
+            T* rowData = data.GetSegmentData(row);
+            for (int col = 0; col < cols; ++col) {
+                rowData[col] = value;
+            }
         }
     }
 
     void SwapRows(int first, int second) {
+        CheckRow(first);
+        CheckRow(second);
         if (first == second) {
             return;
         }
 
-        data.SwapRowsMatrix(first, second);
+        data.GetSegment(first).Swap(data.GetSegment(second));
     }
 
     Vector<T> GetRow(int row) const {

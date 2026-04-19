@@ -1,32 +1,39 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-#include "deque.hpp"
+#include "dynamic_array.hpp"
 
 template <class T>
 class Vector {
 private:
-    Deque<T> data;
-
-    static Deque<T> CreateStorage(int size, const T& value) {
-        return Deque<T>::CreateVectorStorage(size, value);
-    }
+    DynamicArray<T> data;
 
 public:
     Vector() : data() {}
 
-    explicit Vector(int size) : data(CreateStorage(size, T())) {}
+    explicit Vector(int size) : data(size) {}
 
-    Vector(int size, const T& value) : data(CreateStorage(size, value)) {}
+    Vector(int size, const T& value) : data(size) {
+        for (int i = 0; i < size; ++i) {
+            data[i] = value;
+        }
+    }
 
-    Vector(const T* items, int count) : data(CreateStorage(count, T())) {
+    Vector(const T* items, int count) : data(count) {
+        if (count < 0) {
+            throw InvalidArgumentException("Vector: negative count");
+        }
+        if (count > 0 && items == nullptr) {
+            throw InvalidArgumentException("Vector: null items pointer with positive count");
+        }
+
         for (int i = 0; i < count; ++i) {
-            data.Set(i, items[i]);
+            data[i] = items[i];
         }
     }
 
     int GetSize() const {
-        return data.GetLength();
+        return data.GetSize();
     }
 
     T& Get(int index) {
@@ -51,20 +58,14 @@ public:
 
     void Fill(const T& value) {
         for (int i = 0; i < GetSize(); ++i) {
-            data.Set(i, value);
+            data[i] = value;
         }
     }
 
     void SwapElements(int first, int second) {
-        data.SwapElements(first, second);
-    }
-
-    Deque<T>& AsDeque() {
-        return data;
-    }
-
-    const Deque<T>& AsDeque() const {
-        return data;
+        T temporary = data.Get(first);
+        data.Set(first, data.Get(second));
+        data.Set(second, temporary);
     }
 };
 

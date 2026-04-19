@@ -15,6 +15,7 @@
 #include "mutable_deque_sequence.hpp"
 #include "mutable_list_sequence.hpp"
 #include "pair.hpp"
+#include "segmented_buffer.hpp"
 #include "sequence_utils.hpp"
 
 class TestFailedException {
@@ -434,7 +435,7 @@ void TestDequeCopyAndInsertAcrossSegments() {
     AssertIntDequeEquals(deque, expectedNearFront, 20, "Deque: insert near front across segments");
 }
 
-void TestDequeMutableAccessForMatrixStorage() {
+void TestDequeMutableAccess() {
     Deque<double> deque;
     deque.Append(1.0);
     deque.Append(2.0);
@@ -448,67 +449,42 @@ void TestDequeMutableAccessForMatrixStorage() {
     AssertDoubleDequeNear(deque, expected, 3, 1e-9, "Deque mutable access");
 }
 
-void TestDequeMatrixStorageFactory() {
-    Deque<int> storage = Deque<int>::CreateMatrixStorage(3, 4, 7);
-    Assert(storage.GetLength() == 12, "Deque matrix storage: wrong length");
-
-    for (int i = 0; i < storage.GetLength(); ++i) {
-        Assert(storage.Get(i) == 7, "Deque matrix storage: wrong initial value");
-    }
+void TestSegmentedBufferOperations() {
+    SegmentedBuffer<int> storage(3, 4);
+    Assert(storage.GetSegmentCount() == 3, "SegmentedBuffer: wrong segment count");
+    Assert(storage.GetSegmentSize() == 4, "SegmentedBuffer: wrong segment size");
 
     for (int row = 0; row < 3; ++row) {
-        int* rowPointer = storage.GetMatrixRowPointer(row);
+        storage.AllocateSegment(row);
+        int* rowPointer = storage.GetSegmentData(row);
         for (int col = 0; col < 4; ++col) {
-            rowPointer[col] = row * 10 + col;
+            rowPointer[col] = row * 10 + col + 7;
         }
     }
 
-    Assert(storage.Get(6) == 12, "Deque matrix storage: row pointer access failed");
+    Assert(storage.GetSegment(1)[2] == 19, "SegmentedBuffer: row pointer access failed");
 
-    storage.SwapRowsMatrix(0, 2);
-    int expectedAfterRowSwap[12] = {20, 21, 22, 23, 10, 11, 12, 13, 0, 1, 2, 3};
-    for (int i = 0; i < 12; ++i) {
-        Assert(storage.Get(i) == expectedAfterRowSwap[i], "Deque matrix storage: row swap failed");
+    storage.GetSegment(0).Swap(storage.GetSegment(2));
+    int expectedAfterSwap[12] = {27, 28, 29, 30, 17, 18, 19, 20, 7, 8, 9, 10};
+    for (int row = 0; row < 3; ++row) {
+        const int* rowPointer = storage.GetSegmentData(row);
+        for (int col = 0; col < 4; ++col) {
+            Assert(rowPointer[col] == expectedAfterSwap[row * 4 + col], "SegmentedBuffer: segment swap failed");
+        }
     }
 
-    storage.Append(100);
-    storage.Prepend(-1);
-    Assert(storage.GetLength() == 14, "Deque matrix storage: append/prepend length failed");
-    Assert(storage.Get(0) == -1, "Deque matrix storage: prepend failed");
-    Assert(storage.Get(7) == 12, "Deque matrix storage: value moved incorrectly after prepend");
-    Assert(storage.Get(13) == 100, "Deque matrix storage: append failed");
+    SegmentedBuffer<std::string> lazyStorage(2, 3);
+    Assert(!lazyStorage.HasSegment(0), "SegmentedBuffer: segments must be lazy by default");
+    lazyStorage.AllocateSegment(0);
+    Assert(lazyStorage.HasSegment(0), "SegmentedBuffer: AllocateSegment must create segment");
 
     bool caught = false;
     try {
-        storage.GetMatrixRowPointer(0);
+        lazyStorage.GetSegmentData(1);
     } catch (const LabException&) {
         caught = true;
     }
-    Assert(caught, "Deque matrix storage: row pointer must be disabled after append/prepend");
-
-    Deque<int> copied(storage);
-    Assert(copied.GetLength() == storage.GetLength(), "Deque matrix storage: copy length failed");
-    for (int i = 0; i < copied.GetLength(); ++i) {
-        Assert(copied.Get(i) == storage.Get(i), "Deque matrix storage: copy value failed");
-    }
-
-    Deque<std::string> filledStorage = Deque<std::string>::CreateVectorStorage(3, std::string("item"));
-    Assert(filledStorage.GetLength() == 3, "Deque vector storage: wrong length");
-    Assert(filledStorage.Get(0) == "item" && filledStorage.Get(2) == "item",
-           "Deque vector storage: wrong values");
-    filledStorage.Set(1, "changed");
-    Assert(filledStorage.Get(1) == "changed", "Deque vector storage: mutable access failed");
-
-    Deque<int> emptyMatrixStorage = Deque<int>::CreateMatrixStorage(0, 4, 1);
-    Assert(emptyMatrixStorage.GetLength() == 0, "Deque matrix storage: zero-row storage must be empty");
-
-    caught = false;
-    try {
-        emptyMatrixStorage.GetMatrixRowPointer(0);
-    } catch (const LabException&) {
-        caught = true;
-    }
-    Assert(caught, "Deque matrix storage: empty storage must reject row access");
+    Assert(caught, "SegmentedBuffer: unallocated segment must reject data access");
 }
 
 void TestSequenceInterfaceSubsequenceAndConcat() {
@@ -1070,8 +1046,8 @@ bool RunAllTests() {
         {"Deque: index and empty errors", TestDequeIndexAndEmptyErrors},
         {"Deque: segment boundaries", TestDequeSegmentBoundaries},
         {"Deque: copy and insert across segments", TestDequeCopyAndInsertAcrossSegments},
-        {"Deque: mutable access for matrix storage", TestDequeMutableAccessForMatrixStorage},
-        {"Deque: matrix storage factory", TestDequeMatrixStorageFactory},
+        {"Deque: mutable access", TestDequeMutableAccess},
+        {"SegmentedBuffer: operations", TestSegmentedBufferOperations},
         {"Sequence: abstraction", TestSequenceInterfaceSubsequenceAndConcat},
         {"MutableSequence: semantics", TestMutableSemantics},
         {"ImmutableArraySequence: semantics", TestImmutableArraySemantics},

@@ -114,13 +114,6 @@ public:
 
     explicit DiagonalMatrix(int size) : data(size, T()), zero(T()) {}
 
-    explicit DiagonalMatrix(const Deque<T>& diagonal)
-        : data(diagonal.GetLength(), T()), zero(T()) {
-        for (int i = 0; i < diagonal.GetLength(); ++i) {
-            SetDiagonal(i, diagonal.Get(i));
-        }
-    }
-
     explicit DiagonalMatrix(const Vector<T>& diagonal)
         : data(diagonal.GetSize(), T()), zero(T()) {
         for (int i = 0; i < diagonal.GetSize(); ++i) {
