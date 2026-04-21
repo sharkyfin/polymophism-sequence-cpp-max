@@ -1,7 +1,7 @@
 #ifndef MUTABLE_LIST_SEQUENCE_H
 #define MUTABLE_LIST_SEQUENCE_H
 
-#include "list_sequence_base.hpp"
+#include "sequence/list_sequence_base.hpp"
 
 template <class T>
 class MutableListSequence : public ListSequenceBase<T> {

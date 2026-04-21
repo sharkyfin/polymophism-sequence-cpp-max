@@ -1,7 +1,7 @@
 #ifndef IMMUTABLE_ARRAY_SEQUENCE_H
 #define IMMUTABLE_ARRAY_SEQUENCE_H
 
-#include "array_sequence_base.hpp"
+#include "sequence/array_sequence_base.hpp"
 
 template <class T>
 class ImmutableArraySequence : public ArraySequenceBase<T> {

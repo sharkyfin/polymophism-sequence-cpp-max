@@ -1,10 +1,12 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra
+CXXFLAGS = -std=c++17 -Wall -Wextra -I.
 
 BUILD_DIR = build
 APP = $(BUILD_DIR)/lab2
 TEST_APP = $(BUILD_DIR)/lab2_tests
-HEADERS = $(wildcard *.hpp)
+HEADERS = $(shell find core sequence deque matrix tests -name '*.hpp')
+APP_SRC = main.cpp
+TEST_SRC = tests/tests.cpp tests/matrix_tests.cpp
 
 .PHONY: all run test tests clean
 
@@ -13,8 +15,8 @@ all: $(APP)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(APP): main.cpp tests.cpp matrix_tests.cpp $(HEADERS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) main.cpp tests.cpp matrix_tests.cpp -o $(APP)
+$(APP): $(APP_SRC) $(TEST_SRC) $(HEADERS) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(APP_SRC) $(TEST_SRC) -o $(APP)
 
 run: $(APP)
 	./$(APP)
@@ -25,8 +27,8 @@ test: $(TEST_APP)
 tests:
 	$(MAKE) test
 
-$(TEST_APP): tests.cpp matrix_tests.cpp $(HEADERS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -DTESTS_MAIN tests.cpp matrix_tests.cpp -o $(TEST_APP)
+$(TEST_APP): $(TEST_SRC) $(HEADERS) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -DTESTS_MAIN $(TEST_SRC) -o $(TEST_APP)
 
 clean:
 	rm -f $(APP) $(TEST_APP) lab2 lab2_tests tests

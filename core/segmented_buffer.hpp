@@ -1,8 +1,8 @@
 #ifndef SEGMENTED_BUFFER_H
 #define SEGMENTED_BUFFER_H
 
-#include "dynamic_array.hpp"
-#include "exceptions.hpp"
+#include "core/dynamic_array.hpp"
+#include "core/exceptions.hpp"
 
 template <class T>
 class SegmentedBuffer {

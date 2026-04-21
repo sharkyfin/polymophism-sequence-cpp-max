@@ -1,7 +1,7 @@
 #ifndef MUTABLE_DEQUE_SEQUENCE_H
 #define MUTABLE_DEQUE_SEQUENCE_H
 
-#include "deque_sequence_base.hpp"
+#include "deque/deque_sequence_base.hpp"
 
 template <class T>
 class MutableDequeSequence : public DequeSequenceBase<T> {

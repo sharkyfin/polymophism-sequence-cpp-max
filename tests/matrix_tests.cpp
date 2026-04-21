@@ -1,6 +1,6 @@
-#include "tests.hpp"
+#include "tests/tests.hpp"
 
-#include "matrix_solvers.hpp"
+#include "matrix/matrix_solvers.hpp"
 
 void TestMatrixInvalidSizes() {
     RectangularMatrix<double> empty;
@@ -108,15 +108,15 @@ void TestSquareAndSpecialMatrices() {
     AssertDoubleNear(identity.Trace(), 3.0, 1e-9, "SquareMatrix: wrong trace");
 
     TriangularMatrix<double> lower(3, TriangleKind::Lower);
-    lower.SetInsideTriangle(0, 0, 1.0);
-    lower.SetInsideTriangle(1, 0, 2.0);
-    lower.SetInsideTriangle(1, 1, 3.0);
+    lower.Set(0, 0, 1.0);
+    lower.Set(1, 0, 2.0);
+    lower.Set(1, 1, 3.0);
     AssertDoubleNear(lower.Get(0, 1), 0.0, 1e-9, "TriangularMatrix: value outside lower triangle");
     AssertDoubleNear(lower.Get(1, 0), 2.0, 1e-9, "TriangularMatrix: value inside lower triangle");
 
     bool caught = false;
     try {
-        lower.SetInsideTriangle(0, 2, 10.0);
+        lower.Set(0, 2, 10.0);
     } catch (const LabException&) {
         caught = true;
     }
@@ -216,6 +216,66 @@ void TestMatrixSolversKnownSystem() {
                      "MatrixSolvers: LU residual");
 }
 
+void TestMatrixSolversAdditionalPublicApi() {
+    TriangularMatrix<double> lower(3, TriangleKind::Lower);
+    lower.Set(0, 0, 1.0);
+    lower.Set(1, 0, 2.0);
+    lower.Set(1, 1, 1.0);
+    lower.Set(2, 0, -1.0);
+    lower.Set(2, 1, 3.0);
+    lower.Set(2, 2, 1.0);
+
+    Vector<double> lowerRightSide(3, 0.0);
+    lowerRightSide[0] = 1.0;
+    lowerRightSide[1] = 4.0;
+    lowerRightSide[2] = 8.0;
+
+    Vector<double> forwardSolution = ForwardSubstitution(lower, lowerRightSide);
+    double expectedForwardSolution[3] = {1.0, 2.0, 3.0};
+    AssertDoubleVectorNear(forwardSolution, expectedForwardSolution, 3, 1e-9,
+                          "MatrixSolvers: ForwardSubstitution");
+
+    TriangularMatrix<double> upper(3, TriangleKind::Upper);
+    upper.Set(0, 0, 2.0);
+    upper.Set(0, 1, -1.0);
+    upper.Set(0, 2, 1.0);
+    upper.Set(1, 1, 3.0);
+    upper.Set(1, 2, 2.0);
+    upper.Set(2, 2, 4.0);
+
+    Vector<double> upperRightSide(3, 0.0);
+    upperRightSide[0] = 7.0;
+    upperRightSide[1] = 7.0;
+    upperRightSide[2] = 8.0;
+
+    Vector<double> backwardSolution = BackwardSubstitution(upper, upperRightSide);
+    double expectedBackwardSolution[3] = {3.0, 1.0, 2.0};
+    AssertDoubleVectorNear(backwardSolution, expectedBackwardSolution, 3, 1e-9,
+                          "MatrixSolvers: BackwardSubstitution");
+
+    SquareMatrix<double> matrix = CreateSolverMatrix();
+    Vector<double> expectedSolution = CreateKnownSolution();
+    Vector<double> rightSide = Multiply(matrix, expectedSolution);
+
+    Vector<double> directLUSolution = SolveViaLU(matrix, rightSide);
+    double expectedSolverSolution[3] = {3.0, 1.0, 2.0};
+    AssertDoubleVectorNear(directLUSolution, expectedSolverSolution, 3, 1e-9,
+                          "MatrixSolvers: SolveViaLU(matrix, b)");
+
+    Vector<double> gaussNoPivotSolution = SolveGaussNoPivot(matrix, rightSide);
+    AssertDoubleVectorNear(gaussNoPivotSolution, expectedSolverSolution, 3, 1e-9,
+                          "MatrixSolvers: SolveGaussNoPivot");
+
+    bool caught = false;
+    try {
+        Vector<double> badRightSide(2, 0.0);
+        ForwardSubstitution(lower, badRightSide);
+    } catch (const InvalidArgumentException&) {
+        caught = true;
+    }
+    Assert(caught, "MatrixSolvers: ForwardSubstitution must validate right side size");
+}
+
 void TestMatrixSolversErrors() {
     SquareMatrix<double> singular(2, 0.0);
     singular.Set(0, 0, 1.0);
@@ -257,6 +317,7 @@ bool RunMatrixTests(int& passed, int& failed) {
         {"Square/special matrices", TestSquareAndSpecialMatrices},
         {"MatrixAlgorithms", TestMatrixAlgorithms},
         {"MatrixSolvers: known system", TestMatrixSolversKnownSystem},
+        {"MatrixSolvers: additional public API", TestMatrixSolversAdditionalPublicApi},
         {"MatrixSolvers: errors", TestMatrixSolversErrors},
     };
 

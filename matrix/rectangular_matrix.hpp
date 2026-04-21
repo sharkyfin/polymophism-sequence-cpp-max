@@ -3,9 +3,9 @@
 
 #include <iostream>
 
-#include "exceptions.hpp"
-#include "segmented_buffer.hpp"
-#include "vector.hpp"
+#include "core/exceptions.hpp"
+#include "core/segmented_buffer.hpp"
+#include "matrix/vector.hpp"
 
 template <class T>
 class RectangularMatrix {

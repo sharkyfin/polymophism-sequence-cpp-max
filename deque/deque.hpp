@@ -1,9 +1,9 @@
 #ifndef DEQUE_H
 #define DEQUE_H
 
-#include "segmented_buffer.hpp"
-#include "exceptions.hpp"
-#include "ienumerator.hpp"
+#include "core/segmented_buffer.hpp"
+#include "core/exceptions.hpp"
+#include "core/ienumerator.hpp"
 
 template <class T>
 class Deque {
@@ -24,28 +24,53 @@ private:
         return buffer.GetSegmentSize();
     }
 
+    int GetCircularSegmentIndex(int segmentIndex) const {
+        int mapSize = GetMapSize();
+        int circularSegmentIndex = segmentIndex % mapSize;
+        if (circularSegmentIndex < 0) {
+            circularSegmentIndex += mapSize;
+        }
+
+        return circularSegmentIndex;
+    }
+
+    int GetLinearOffset(int logicalIndex) const {
+        return firstIndex + logicalIndex;
+    }
+
     int GetUsedSegmentCount() const {
         if (length == 0) {
             return 1;
         }
 
-        return (firstIndex + length - 1) / GetSegmentSize() + 1;
+        int lastLogicalIndex = length - 1;
+        int lastLinearOffset = GetLinearOffset(lastLogicalIndex);
+        int lastUsedSegmentOffset = lastLinearOffset / GetSegmentSize();
+        return lastUsedSegmentOffset + 1;
     }
 
     int GetSegmentIndex(int logicalIndex) const {
-        return firstSegment + (firstIndex + logicalIndex) / GetSegmentSize();
+        int linearOffset = GetLinearOffset(logicalIndex);
+        int segmentOffsetFromFront = linearOffset / GetSegmentSize();
+        int physicalSegmentIndex = firstSegment + segmentOffsetFromFront;
+        return GetCircularSegmentIndex(physicalSegmentIndex);
     }
 
     int GetSegmentOffset(int logicalIndex) const {
-        return (firstIndex + logicalIndex) % GetSegmentSize();
+        int linearOffset = GetLinearOffset(logicalIndex);
+        return linearOffset % GetSegmentSize();
     }
 
     T& GetElementAtLogicalIndex(int logicalIndex) {
-        return buffer.GetSegment(GetSegmentIndex(logicalIndex))[GetSegmentOffset(logicalIndex)];
+        int segmentIndex = GetSegmentIndex(logicalIndex);
+        int segmentOffset = GetSegmentOffset(logicalIndex);
+        return buffer.GetSegment(segmentIndex)[segmentOffset];
     }
 
     const T& GetElementAtLogicalIndex(int logicalIndex) const {
-        return buffer.GetSegment(GetSegmentIndex(logicalIndex))[GetSegmentOffset(logicalIndex)];
+        int segmentIndex = GetSegmentIndex(logicalIndex);
+        int segmentOffset = GetSegmentOffset(logicalIndex);
+        return buffer.GetSegment(segmentIndex)[segmentOffset];
     }
 
     void AllocateSegment(int segmentIndex) {
@@ -64,7 +89,7 @@ private:
         int newSegmentSize = (buffer.GetSegmentSize() > 0) ? buffer.GetSegmentSize() : defaultSegmentSize;
         SegmentedBuffer<T> newBuffer(newMapSize, newSegmentSize);
         buffer.Swap(newBuffer);
-        firstSegment = newMapSize / 2;
+        firstSegment = 0;
         firstIndex = GetSegmentSize() / 2;
         length = 0;
         AllocateSegment(firstSegment);
@@ -78,17 +103,17 @@ private:
             throw InvalidArgumentException("Deque: invalid segment size");
         }
 
-        int neededSegments = (itemCount == 0) ? 1 : (itemCount - 1) / newSegmentSize + 1;
-        SegmentedBuffer<T> newBuffer(neededSegments, newSegmentSize);
+        int requiredSegmentCount = (itemCount == 0) ? 1 : (itemCount - 1) / newSegmentSize + 1;
+        SegmentedBuffer<T> newBuffer(requiredSegmentCount, newSegmentSize);
 
-        for (int segment = 0; segment < neededSegments; ++segment) {
-            newBuffer.AllocateSegment(segment);
+        for (int segmentIndex = 0; segmentIndex < requiredSegmentCount; ++segmentIndex) {
+            newBuffer.AllocateSegment(segmentIndex);
         }
 
-        for (int i = 0; i < itemCount; ++i) {
-            int targetSegmentIndex = i / newSegmentSize;
-            int segmentOffset = i % newSegmentSize;
-            newBuffer.GetSegment(targetSegmentIndex)[segmentOffset] = value;
+        for (int itemIndex = 0; itemIndex < itemCount; ++itemIndex) {
+            int targetSegmentIndex = itemIndex / newSegmentSize;
+            int targetSegmentOffset = itemIndex % newSegmentSize;
+            newBuffer.GetSegment(targetSegmentIndex)[targetSegmentOffset] = value;
         }
 
         buffer.Swap(newBuffer);
@@ -105,41 +130,47 @@ private:
 
     void GrowSegmentMap() {
         int usedSegmentCount = GetUsedSegmentCount();
-        int newMapSize = (GetMapSize() > 0) ? GetMapSize() * 2 : defaultMapSize;
-        while (newMapSize <= usedSegmentCount + 1) {
-            newMapSize *= 2;
+        int expandedMapSize = (GetMapSize() > 0) ? GetMapSize() * 2 : defaultMapSize;
+        while (expandedMapSize <= usedSegmentCount + 1) {
+            expandedMapSize *= 2;
         }
 
-        SegmentedBuffer<T> newBuffer(newMapSize, GetSegmentSize());
+        SegmentedBuffer<T> expandedBuffer(expandedMapSize, GetSegmentSize());
 
-        int newFirstSegment = (newMapSize - usedSegmentCount) / 2;
-        for (int i = 0; i < usedSegmentCount; ++i) {
-            newBuffer.GetSegment(newFirstSegment + i).Swap(buffer.GetSegment(firstSegment + i));
+        int centeredFirstSegment = (expandedMapSize - usedSegmentCount) / 2;
+        for (int segmentOffset = 0; segmentOffset < usedSegmentCount; ++segmentOffset) {
+            int oldPhysicalSegmentIndex = GetCircularSegmentIndex(firstSegment + segmentOffset);
+            int newPhysicalSegmentIndex = centeredFirstSegment + segmentOffset;
+            expandedBuffer.GetSegment(newPhysicalSegmentIndex).Swap(
+                buffer.GetSegment(oldPhysicalSegmentIndex));
         }
 
-        buffer.Swap(newBuffer);
-        firstSegment = newFirstSegment;
+        buffer.Swap(expandedBuffer);
+        firstSegment = centeredFirstSegment;
     }
 
     void EnsureMapForAppend() {
-        int logicalLastElementIndex = length;
-        while (GetSegmentIndex(logicalLastElementIndex) >= GetMapSize()) {
+        bool appendNeedsNewSegment = length > 0 && GetSegmentOffset(length) == 0;
+        while (appendNeedsNewSegment && GetUsedSegmentCount() == GetMapSize()) {
             GrowSegmentMap();
         }
 
-        AllocateSegment(GetSegmentIndex(logicalLastElementIndex));
+        int appendSegmentIndex = GetSegmentIndex(length);
+        AllocateSegment(appendSegmentIndex);
     }
 
     void EnsureMapForPrepend() {
-        if (firstIndex > 0) {
+        bool prependNeedsNewSegment = length > 0 && firstIndex == 0;
+        if (!prependNeedsNewSegment) {
             return;
         }
 
-        while (firstSegment == 0) {
+        while (GetUsedSegmentCount() == GetMapSize()) {
             GrowSegmentMap();
         }
 
-        AllocateSegment(firstSegment - 1);
+        int prependSegmentIndex = GetCircularSegmentIndex(firstSegment - 1);
+        AllocateSegment(prependSegmentIndex);
     }
 
     void Swap(Deque<T>& other) {
@@ -284,14 +315,14 @@ public:
     void Append(const T& item) {
         EnsureMapForAppend();
 
-        int targetSegmentIndex = firstSegment;
-        int segmentOffset = firstIndex;
+        int writeSegmentIndex = firstSegment;
+        int writeSegmentOffset = firstIndex;
         if (length > 0) {
-            targetSegmentIndex = GetSegmentIndex(length);
-            segmentOffset = GetSegmentOffset(length);
+            writeSegmentIndex = GetSegmentIndex(length);
+            writeSegmentOffset = GetSegmentOffset(length);
         }
 
-        buffer.GetSegment(targetSegmentIndex)[segmentOffset] = item;
+        buffer.GetSegment(writeSegmentIndex)[writeSegmentOffset] = item;
         ++length;
     }
 
@@ -300,7 +331,7 @@ public:
 
         if (length > 0) {
             if (firstIndex == 0) {
-                --firstSegment;
+                firstSegment = GetCircularSegmentIndex(firstSegment - 1);
                 firstIndex = GetSegmentSize() - 1;
             } else {
                 --firstIndex;
@@ -327,20 +358,24 @@ public:
         }
 
         int oldLength = length;
+        int distanceToFront = index;
+        int distanceToBack = oldLength - index;
 
-        if (index < oldLength - index) {
+        if (distanceToFront < distanceToBack) {
             T firstValue = GetFirst();
             Prepend(firstValue);
 
-            for (int i = 0; i < index; ++i) {
-                GetElementAtLogicalIndex(i) = GetElementAtLogicalIndex(i + 1);
+            for (int logicalIndex = 0; logicalIndex < index; ++logicalIndex) {
+                GetElementAtLogicalIndex(logicalIndex) =
+                    GetElementAtLogicalIndex(logicalIndex + 1);
             }
         } else {
             T lastValue = GetLast();
             Append(lastValue);
 
-            for (int i = oldLength; i > index; --i) {
-                GetElementAtLogicalIndex(i) = GetElementAtLogicalIndex(i - 1);
+            for (int logicalIndex = oldLength; logicalIndex > index; --logicalIndex) {
+                GetElementAtLogicalIndex(logicalIndex) =
+                    GetElementAtLogicalIndex(logicalIndex - 1);
             }
         }
 
@@ -357,12 +392,12 @@ public:
             return;
         }
 
-        int oldFirstSegment = firstSegment;
+        int leavingSegmentIndex = firstSegment;
         ++firstIndex;
         if (firstIndex == GetSegmentSize()) {
             firstIndex = 0;
-            ++firstSegment;
-            ClearSegment(oldFirstSegment);
+            firstSegment = GetCircularSegmentIndex(firstSegment + 1);
+            ClearSegment(leavingSegmentIndex);
         }
 
         --length;
@@ -378,11 +413,11 @@ public:
             return;
         }
 
-        int oldLastSegment = GetSegmentIndex(length - 1);
+        int removedSegmentIndex = GetSegmentIndex(length - 1);
         --length;
-        int newLastSegment = GetSegmentIndex(length - 1);
-        if (oldLastSegment != newLastSegment) {
-            ClearSegment(oldLastSegment);
+        int remainingLastSegmentIndex = GetSegmentIndex(length - 1);
+        if (removedSegmentIndex != remainingLastSegmentIndex) {
+            ClearSegment(removedSegmentIndex);
         }
     }
 

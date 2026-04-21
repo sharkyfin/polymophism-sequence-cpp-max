@@ -1,7 +1,7 @@
 #ifndef MUTABLE_ARRAY_SEQUENCE_H
 #define MUTABLE_ARRAY_SEQUENCE_H
 
-#include "array_sequence_base.hpp"
+#include "sequence/array_sequence_base.hpp"
 
 template <class T>
 class MutableArraySequence : public ArraySequenceBase<T> {

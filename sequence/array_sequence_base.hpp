@@ -1,8 +1,8 @@
 #ifndef ARRAY_SEQUENCE_BASE_H
 #define ARRAY_SEQUENCE_BASE_H
 
-#include "dynamic_array.hpp"
-#include "sequence.hpp"
+#include "core/dynamic_array.hpp"
+#include "sequence/sequence.hpp"
 
 template <class T>
 class ArraySequenceBase : public Sequence<T> {

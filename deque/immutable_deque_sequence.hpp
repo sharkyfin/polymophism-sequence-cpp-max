@@ -1,7 +1,7 @@
 #ifndef IMMUTABLE_DEQUE_SEQUENCE_H
 #define IMMUTABLE_DEQUE_SEQUENCE_H
 
-#include "deque_sequence_base.hpp"
+#include "deque/deque_sequence_base.hpp"
 
 template <class T>
 class ImmutableDequeSequence : public DequeSequenceBase<T> {

@@ -1,8 +1,8 @@
 #ifndef DEQUE_SEQUENCE_BASE_H
 #define DEQUE_SEQUENCE_BASE_H
 
-#include "deque.hpp"
-#include "sequence.hpp"
+#include "deque/deque.hpp"
+#include "sequence/sequence.hpp"
 
 template <class T>
 class DequeSequenceBase : public Sequence<T> {

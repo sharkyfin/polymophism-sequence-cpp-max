@@ -3,10 +3,10 @@
 
 #include <iostream>
 
-#include "dynamic_array.hpp"
-#include "heap_cleaner.hpp"
-#include "icollection.hpp"
-#include "ienumerator.hpp"
+#include "core/dynamic_array.hpp"
+#include "core/heap_cleaner.hpp"
+#include "core/icollection.hpp"
+#include "core/ienumerator.hpp"
 
 template <class T>
 class Sequence : public ICollection<T> {

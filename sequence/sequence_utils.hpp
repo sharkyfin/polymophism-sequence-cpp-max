@@ -1,9 +1,9 @@
 #ifndef SEQUENCE_UTILS_H
 #define SEQUENCE_UTILS_H
 
-#include "heap_cleaner.hpp"
-#include "mutable_array_sequence.hpp"
-#include "pair.hpp"
+#include "core/heap_cleaner.hpp"
+#include "sequence/mutable_array_sequence.hpp"
+#include "core/pair.hpp"
 
 template <class T1, class T2>
 Sequence<Pair<T1, T2>>* Zip(const Sequence<T1>& first, const Sequence<T2>& second) {

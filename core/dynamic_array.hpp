@@ -1,8 +1,8 @@
 #ifndef DYNAMIC_ARRAY_H
 #define DYNAMIC_ARRAY_H
 
-#include "exceptions.hpp"
-#include "ienumerator.hpp"
+#include "core/exceptions.hpp"
+#include "core/ienumerator.hpp"
 
 template <class T>
 class DynamicArray {

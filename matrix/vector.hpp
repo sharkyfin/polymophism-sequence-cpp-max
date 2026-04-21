@@ -1,7 +1,7 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-#include "dynamic_array.hpp"
+#include "core/dynamic_array.hpp"
 
 template <class T>
 class Vector {

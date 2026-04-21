@@ -1,9 +1,9 @@
 #ifndef MATRIX_SOLVERS_H
 #define MATRIX_SOLVERS_H
 
-#include "matrix_algorithms.hpp"
-#include "matrix_common.hpp"
-#include "special_matrices.hpp"
+#include "matrix/matrix_algorithms.hpp"
+#include "matrix/matrix_common.hpp"
+#include "matrix/special_matrices.hpp"
 
 struct LUDecompositionResult {
     TriangularMatrix<double> L;
@@ -78,12 +78,13 @@ inline Vector<double> ForwardSubstitution(const TriangularMatrix<double>& lower,
 
     Vector<double> y = CreateDoubleVector(size, 0.0);
     for (int row = 0; row < size; ++row) {
+        const double* lowerRow = lower[row];
         double sum = rightSide[row];
         for (int col = 0; col < row; ++col) {
-            sum -= lower[row][col] * y[col];
+            sum -= lowerRow[col] * y[col];
         }
 
-        double diagonal = lower[row][row];
+        double diagonal = lowerRow[row];
         if (IsNearZero(diagonal, epsilon)) {
             throw CalculationException("ForwardSubstitution: zero or too small diagonal element");
         }
@@ -110,12 +111,13 @@ inline Vector<double> BackwardSubstitution(const TriangularMatrix<double>& upper
 
     Vector<double> x = CreateDoubleVector(size, 0.0);
     for (int row = size - 1; row >= 0; --row) {
+        const double* upperRow = upper[row];
         double sum = rightSide[row];
         for (int col = row + 1; col < size; ++col) {
-            sum -= upper[row][col] * x[col];
+            sum -= upperRow[col] * x[col];
         }
 
-        double diagonal = upper[row][row];
+        double diagonal = upperRow[row];
         if (IsNearZero(diagonal, epsilon)) {
             throw CalculationException("BackwardSubstitution: zero or too small diagonal element");
         }
@@ -137,16 +139,19 @@ inline LUDecompositionResult LUDecompose(const SquareMatrix<double>& matrix,
     TriangularMatrix<double> upper(size, TriangleKind::Upper);
 
     for (int i = 0; i < size; ++i) {
-        lower.SetInsideTriangle(i, i, 1.0);
+        lower.Set(i, i, 1.0);
     }
 
     for (int i = 0; i < size; ++i) {
+        const double* matrixPivotRow = matrix[i];
+        const double* lowerPivotRow = lower[i];
         for (int col = i; col < size; ++col) {
             double sum = 0.0;
             for (int k = 0; k < i; ++k) {
-                sum += lower[i][k] * upper[k][col];
+                const double* upperRow = upper[k];
+                sum += lowerPivotRow[k] * upperRow[col];
             }
-            upper.SetInsideTriangle(i, col, matrix[i][col] - sum);
+            upper.Set(i, col, matrixPivotRow[col] - sum);
         }
 
         double pivot = upper[i][i];
@@ -155,11 +160,14 @@ inline LUDecompositionResult LUDecompose(const SquareMatrix<double>& matrix,
         }
 
         for (int row = i + 1; row < size; ++row) {
+            const double* matrixRow = matrix[row];
+            const double* lowerRow = lower[row];
             double sum = 0.0;
             for (int k = 0; k < i; ++k) {
-                sum += lower[row][k] * upper[k][i];
+                const double* upperRow = upper[k];
+                sum += lowerRow[k] * upperRow[i];
             }
-            lower.SetInsideTriangle(row, i, (matrix[row][i] - sum) / pivot);
+            lower.Set(row, i, (matrixRow[i] - sum) / pivot);
         }
     }
 
@@ -194,17 +202,19 @@ inline Vector<double> SolveGaussNoPivot(const SquareMatrix<double>& matrix,
     int size = working.GetSize();
 
     for (int pivot = 0; pivot < size; ++pivot) {
-        double pivotValue = working[pivot][pivot];
+        double* pivotRow = working[pivot];
+        double pivotValue = pivotRow[pivot];
         if (IsNearZero(pivotValue, epsilon)) {
             throw CalculationException("SolveGaussNoPivot: zero or too small pivot");
         }
 
         for (int row = pivot + 1; row < size; ++row) {
-            double factor = working[row][pivot] / pivotValue;
-            working[row][pivot] = 0.0;
+            double* workingRow = working[row];
+            double factor = workingRow[pivot] / pivotValue;
+            workingRow[pivot] = 0.0;
 
             for (int col = pivot + 1; col < size; ++col) {
-                working[row][col] = working[row][col] - factor * working[pivot][col];
+                workingRow[col] = workingRow[col] - factor * pivotRow[col];
             }
 
             b[row] = b[row] - factor * b[pivot];
@@ -229,7 +239,8 @@ inline Vector<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
         double bestValue = AbsValue(working[pivot][pivot]);
 
         for (int row = pivot + 1; row < size; ++row) {
-            double candidate = AbsValue(working[row][pivot]);
+            const double* workingRow = working[row];
+            double candidate = AbsValue(workingRow[pivot]);
             if (candidate > bestValue) {
                 bestValue = candidate;
                 bestRow = row;
@@ -243,13 +254,15 @@ inline Vector<double> SolveGaussPartialPivot(const SquareMatrix<double>& matrix,
         working.SwapRows(pivot, bestRow);
         b.SwapElements(pivot, bestRow);
 
-        double pivotValue = working[pivot][pivot];
+        double* pivotRow = working[pivot];
+        double pivotValue = pivotRow[pivot];
         for (int row = pivot + 1; row < size; ++row) {
-            double factor = working[row][pivot] / pivotValue;
-            working[row][pivot] = 0.0;
+            double* workingRow = working[row];
+            double factor = workingRow[pivot] / pivotValue;
+            workingRow[pivot] = 0.0;
 
             for (int col = pivot + 1; col < size; ++col) {
-                working[row][col] = working[row][col] - factor * working[pivot][col];
+                workingRow[col] = workingRow[col] - factor * pivotRow[col];
             }
 
             b[row] = b[row] - factor * b[pivot];

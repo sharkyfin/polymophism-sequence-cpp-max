@@ -1,17 +1,17 @@
 #include <iostream>
 #include <string>
 
-#include "exceptions.hpp"
-#include "immutable_array_sequence.hpp"
-#include "immutable_deque_sequence.hpp"
-#include "immutable_list_sequence.hpp"
-#include "matrix_solvers.hpp"
-#include "mutable_array_sequence.hpp"
-#include "mutable_deque_sequence.hpp"
-#include "mutable_list_sequence.hpp"
-#include "pair.hpp"
-#include "sequence_utils.hpp"
-#include "tests.hpp"
+#include "core/exceptions.hpp"
+#include "sequence/immutable_array_sequence.hpp"
+#include "deque/immutable_deque_sequence.hpp"
+#include "sequence/immutable_list_sequence.hpp"
+#include "matrix/matrix_solvers.hpp"
+#include "sequence/mutable_array_sequence.hpp"
+#include "deque/mutable_deque_sequence.hpp"
+#include "sequence/mutable_list_sequence.hpp"
+#include "core/pair.hpp"
+#include "sequence/sequence_utils.hpp"
+#include "tests/tests.hpp"
 
 int ReadInt(const std::string& prompt) {
     std::cout << prompt;
@@ -250,70 +250,138 @@ void PrintSolutionReport(const SquareMatrix<double>& matrix,
     std::cout << "Норма невязки ||Ax-b|| = " << ResidualNorm(matrix, solution, rightSide) << "\n";
 }
 
-void RunKnownMatrixDemo() {
+struct MatrixSession {
+    SquareMatrix<double> matrix;
+    Vector<double> rightSide;
+    bool hasMatrix;
+    bool hasRightSide;
+
+    MatrixSession() : matrix(), rightSide(), hasMatrix(false), hasRightSide(false) {}
+};
+
+void ClearMatrixSession(MatrixSession& session) {
+    session.matrix = SquareMatrix<double>();
+    session.rightSide = Vector<double>();
+    session.hasMatrix = false;
+    session.hasRightSide = false;
+}
+
+void SetSessionMatrix(MatrixSession& session, const SquareMatrix<double>& matrix) {
+    session.matrix = matrix;
+    session.hasMatrix = true;
+    if (!session.hasRightSide || session.rightSide.GetSize() != matrix.GetSize()) {
+        session.rightSide = Vector<double>();
+        session.hasRightSide = false;
+    }
+}
+
+void SetSessionRightSide(MatrixSession& session, const Vector<double>& rightSide) {
+    if (!session.hasMatrix) {
+        throw InvalidArgumentException("Сначала задайте матрицу A");
+    }
+    if (rightSide.GetSize() != session.matrix.GetSize()) {
+        throw InvalidArgumentException("Размер b должен совпадать с размером матрицы");
+    }
+
+    session.rightSide = rightSide;
+    session.hasRightSide = true;
+}
+
+void RequireCurrentLinearSystem(const MatrixSession& session, const char* actionName) {
+    if (!session.hasMatrix) {
+        throw InvalidArgumentException(std::string(actionName) + ": матрица A не задана");
+    }
+    if (!session.hasRightSide) {
+        throw InvalidArgumentException(std::string(actionName) + ": правая часть b не задана");
+    }
+}
+
+void PrintCurrentLinearSystem(const MatrixSession& session) {
+    if (!session.hasMatrix) {
+        std::cout << "Матрица A не задана.\n";
+    } else {
+        std::cout << "A:\n" << session.matrix << "\n";
+    }
+
+    if (!session.hasRightSide) {
+        std::cout << "Правая часть b не задана.\n";
+    } else {
+        std::cout << "b = ";
+        PrintDoubleVector(session.rightSide);
+        std::cout << "\n";
+    }
+}
+
+void LoadDemoLinearSystem(MatrixSession& session) {
     SquareMatrix<double> matrix = CreateMatrixDemoMatrix();
     Vector<double> exactSolution = CreateMatrixDemoSolution();
     Vector<double> rightSide = Multiply(matrix, exactSolution);
 
-    std::cout << "A:\n" << matrix << "\n";
-    std::cout << "b = ";
-    PrintDoubleVector(rightSide);
-    std::cout << "\n";
-
-    Vector<double> gaussSolution = SolveGaussPartialPivot(matrix, rightSide);
-    std::cout << "Gauss partial pivot:\n";
-    PrintSolutionReport(matrix, rightSide, gaussSolution);
-
-    LUDecompositionResult lu = LUDecompose(matrix);
-    Vector<double> luSolution = SolveViaLU(lu, rightSide);
-    std::cout << "LU:\n";
-    PrintSolutionReport(matrix, rightSide, luSolution);
-    std::cout << "L:\n" << lu.L.AsSquare() << "\n";
-    std::cout << "U:\n" << lu.U.AsSquare() << "\n";
-}
-
-void RunCustomGauss() {
-    SquareMatrix<double> matrix = ReadSquareMatrix();
-    Vector<double> rightSide = ReadRightSide(matrix.GetSize());
-    Vector<double> solution = SolveGaussPartialPivot(matrix, rightSide);
-    PrintSolutionReport(matrix, rightSide, solution);
-}
-
-void RunCustomLU() {
-    SquareMatrix<double> matrix = ReadSquareMatrix();
-    Vector<double> rightSide = ReadRightSide(matrix.GetSize());
-    LUDecompositionResult lu = LUDecompose(matrix);
-    Vector<double> solution = SolveViaLU(lu, rightSide);
-    PrintSolutionReport(matrix, rightSide, solution);
-    std::cout << "L:\n" << lu.L.AsSquare() << "\n";
-    std::cout << "U:\n" << lu.U.AsSquare() << "\n";
+    session.matrix = matrix;
+    session.rightSide = rightSide;
+    session.hasMatrix = true;
+    session.hasRightSide = true;
 }
 
 void PrintMatrixMenu() {
     std::cout << "\n===== МАТРИЧНЫЙ РЕЖИМ =====\n";
-    std::cout << "1. Демо известной системы 3x3 (Gauss + LU)\n";
-    std::cout << "2. Решить свою систему методом Гаусса с выбором pivot\n";
-    std::cout << "3. Решить свою систему через LU без перестановок\n";
-    std::cout << "4. Запустить все тесты\n";
+    std::cout << "1. Загрузить демо-систему 3x3\n";
+    std::cout << "2. Ввести матрицу A\n";
+    std::cout << "3. Ввести правую часть b\n";
+    std::cout << "4. Показать текущие A и b\n";
+    std::cout << "5. Решить текущую систему методом Гаусса\n";
+    std::cout << "6. Решить текущую систему через LU\n";
+    std::cout << "7. Очистить текущую систему\n";
+    std::cout << "8. Запустить все тесты\n";
     std::cout << "0. Назад\n";
 }
 
 void RunMatrixMenu() {
+    MatrixSession session;
     bool matrixMenuRunning = true;
     while (matrixMenuRunning) {
         PrintMatrixMenu();
         int command = ReadInt("Выберите пункт: ");
         switch (command) {
             case 1:
-                RunKnownMatrixDemo();
+                LoadDemoLinearSystem(session);
+                std::cout << "Демо-система загружена.\n";
                 break;
             case 2:
-                RunCustomGauss();
+                SetSessionMatrix(session, ReadSquareMatrix());
+                std::cout << "Матрица A сохранена.\n";
                 break;
             case 3:
-                RunCustomLU();
+                if (!session.hasMatrix) {
+                    throw InvalidArgumentException("Сначала задайте матрицу A");
+                }
+                SetSessionRightSide(session, ReadRightSide(session.matrix.GetSize()));
+                std::cout << "Правая часть b сохранена.\n";
                 break;
             case 4: {
+                PrintCurrentLinearSystem(session);
+                break;
+            }
+            case 5: {
+                RequireCurrentLinearSystem(session, "SolveGaussPartialPivot");
+                Vector<double> solution = SolveGaussPartialPivot(session.matrix, session.rightSide);
+                PrintSolutionReport(session.matrix, session.rightSide, solution);
+                break;
+            }
+            case 6: {
+                RequireCurrentLinearSystem(session, "SolveViaLU");
+                LUDecompositionResult lu = LUDecompose(session.matrix);
+                Vector<double> solution = SolveViaLU(lu, session.rightSide);
+                PrintSolutionReport(session.matrix, session.rightSide, solution);
+                std::cout << "L:\n" << lu.L.AsSquare() << "\n";
+                std::cout << "U:\n" << lu.U.AsSquare() << "\n";
+                break;
+            }
+            case 7:
+                ClearMatrixSession(session);
+                std::cout << "Текущая система очищена.\n";
+                break;
+            case 8: {
                 bool ok = RunAllTests();
                 std::cout << (ok ? "Все тесты пройдены.\n" : "Есть упавшие тесты.\n");
                 break;

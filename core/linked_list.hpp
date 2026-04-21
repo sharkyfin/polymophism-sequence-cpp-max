@@ -1,9 +1,9 @@
 #ifndef LINKED_LIST_H
 #define LINKED_LIST_H
 
-#include "exceptions.hpp"
-#include "heap_cleaner.hpp"
-#include "ienumerator.hpp"
+#include "core/exceptions.hpp"
+#include "core/heap_cleaner.hpp"
+#include "core/ienumerator.hpp"
 
 template <class T>
 class LinkedList {

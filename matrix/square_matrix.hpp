@@ -1,7 +1,7 @@
 #ifndef SQUARE_MATRIX_H
 #define SQUARE_MATRIX_H
 
-#include "rectangular_matrix.hpp"
+#include "matrix/rectangular_matrix.hpp"
 
 template <class T>
 class SquareMatrix : public RectangularMatrix<T> {

@@ -1,22 +1,22 @@
-#include "tests.hpp"
+#include "tests/tests.hpp"
 
 #include <iostream>
 #include <string>
 #include <type_traits>
 
-#include "dynamic_array.hpp"
-#include "deque.hpp"
-#include "immutable_array_sequence.hpp"
-#include "immutable_deque_sequence.hpp"
-#include "immutable_list_sequence.hpp"
-#include "linked_list.hpp"
-#include "matrix_solvers.hpp"
-#include "mutable_array_sequence.hpp"
-#include "mutable_deque_sequence.hpp"
-#include "mutable_list_sequence.hpp"
-#include "pair.hpp"
-#include "segmented_buffer.hpp"
-#include "sequence_utils.hpp"
+#include "core/dynamic_array.hpp"
+#include "deque/deque.hpp"
+#include "sequence/immutable_array_sequence.hpp"
+#include "deque/immutable_deque_sequence.hpp"
+#include "sequence/immutable_list_sequence.hpp"
+#include "core/linked_list.hpp"
+#include "matrix/matrix_solvers.hpp"
+#include "sequence/mutable_array_sequence.hpp"
+#include "deque/mutable_deque_sequence.hpp"
+#include "sequence/mutable_list_sequence.hpp"
+#include "core/pair.hpp"
+#include "core/segmented_buffer.hpp"
+#include "sequence/sequence_utils.hpp"
 
 class TestFailedException {
 private:

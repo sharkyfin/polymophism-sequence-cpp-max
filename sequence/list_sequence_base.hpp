@@ -1,8 +1,8 @@
 #ifndef LIST_SEQUENCE_BASE_H
 #define LIST_SEQUENCE_BASE_H
 
-#include "linked_list.hpp"
-#include "sequence.hpp"
+#include "core/linked_list.hpp"
+#include "sequence/sequence.hpp"
 
 template <class T>
 class ListSequenceBase : public Sequence<T> {

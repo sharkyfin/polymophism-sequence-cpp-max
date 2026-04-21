@@ -1,10 +1,10 @@
 #ifndef SPECIAL_MATRICES_H
 #define SPECIAL_MATRICES_H
 
-#include "exceptions.hpp"
-#include "matrix_common.hpp"
-#include "square_matrix.hpp"
-#include "vector.hpp"
+#include "core/exceptions.hpp"
+#include "matrix/matrix_common.hpp"
+#include "matrix/square_matrix.hpp"
+#include "matrix/vector.hpp"
 
 enum class TriangleKind {
     Lower,
@@ -75,7 +75,7 @@ public:
         return data.Get(row, col);
     }
 
-    void SetInsideTriangle(int row, int col, const T& value) {
+    void Set(int row, int col, const T& value) {
         CheckIndex(row, col);
         if (!IsInsideTriangle(row, col)) {
             throw InvalidArgumentException("TriangularMatrix: cannot set value outside triangle");
