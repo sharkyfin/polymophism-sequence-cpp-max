@@ -95,33 +95,6 @@ private:
         AllocateSegment(firstSegment);
     }
 
-    void InitializeFilledStorage(int itemCount, const T& value, int newSegmentSize) {
-        if (itemCount < 0) {
-            throw InvalidArgumentException("Deque: negative filled storage size");
-        }
-        if (newSegmentSize <= 0) {
-            throw InvalidArgumentException("Deque: invalid segment size");
-        }
-
-        int requiredSegmentCount = (itemCount == 0) ? 1 : (itemCount - 1) / newSegmentSize + 1;
-        SegmentedBuffer<T> newBuffer(requiredSegmentCount, newSegmentSize);
-
-        for (int segmentIndex = 0; segmentIndex < requiredSegmentCount; ++segmentIndex) {
-            newBuffer.AllocateSegment(segmentIndex);
-        }
-
-        for (int itemIndex = 0; itemIndex < itemCount; ++itemIndex) {
-            int targetSegmentIndex = itemIndex / newSegmentSize;
-            int targetSegmentOffset = itemIndex % newSegmentSize;
-            newBuffer.GetSegment(targetSegmentIndex)[targetSegmentOffset] = value;
-        }
-
-        buffer.Swap(newBuffer);
-        firstSegment = 0;
-        firstIndex = 0;
-        length = itemCount;
-    }
-
     void CheckIndex(int index) const {
         if (index < 0 || index >= length) {
             throw IndexOutOfRangeException("Deque: index out of range");
@@ -146,6 +119,32 @@ private:
         }
 
         buffer.Swap(expandedBuffer);
+        firstSegment = centeredFirstSegment;
+    }
+
+    void ShrinkSegmentMap() {
+        int usedSegmentCount = GetUsedSegmentCount();
+        if (GetMapSize() <= defaultMapSize || usedSegmentCount * 8 > GetMapSize()) {
+            return;
+        }
+
+        int reducedMapSize = GetMapSize();
+        while (reducedMapSize / 2 >= defaultMapSize &&
+               usedSegmentCount * 4 <= reducedMapSize / 2) {
+            reducedMapSize /= 2;
+        }
+
+        SegmentedBuffer<T> reducedBuffer(reducedMapSize, GetSegmentSize());
+
+        int centeredFirstSegment = (reducedMapSize - usedSegmentCount) / 2;
+        for (int segmentOffset = 0; segmentOffset < usedSegmentCount; ++segmentOffset) {
+            int oldPhysicalSegmentIndex = GetCircularSegmentIndex(firstSegment + segmentOffset);
+            int newPhysicalSegmentIndex = centeredFirstSegment + segmentOffset;
+            reducedBuffer.GetSegment(newPhysicalSegmentIndex).Swap(
+                buffer.GetSegment(oldPhysicalSegmentIndex));
+        }
+
+        buffer.Swap(reducedBuffer);
         firstSegment = centeredFirstSegment;
     }
 
@@ -247,11 +246,6 @@ public:
         }
     }
 
-    Deque(int count, const T& value, int customSegmentSize)
-        : buffer(), firstSegment(0), firstIndex(0), length(0) {
-        InitializeFilledStorage(count, value, customSegmentSize);
-    }
-
     Deque(const Deque<T>& other) = default;
 
     Deque<T>& operator=(const Deque<T>& other) = default;
@@ -342,65 +336,30 @@ public:
         ++length;
     }
 
-    void InsertAt(const T& item, int index) {
-        if (index < 0 || index > length) {
-            throw IndexOutOfRangeException("Deque: index out of range in InsertAt");
-        }
-
-        if (index == 0) {
-            Prepend(item);
-            return;
-        }
-
-        if (index == length) {
-            Append(item);
-            return;
-        }
-
-        int oldLength = length;
-        int distanceToFront = index;
-        int distanceToBack = oldLength - index;
-
-        if (distanceToFront < distanceToBack) {
-            T firstValue = GetFirst();
-            Prepend(firstValue);
-
-            for (int logicalIndex = 0; logicalIndex < index; ++logicalIndex) {
-                GetElementAtLogicalIndex(logicalIndex) =
-                    GetElementAtLogicalIndex(logicalIndex + 1);
-            }
-        } else {
-            T lastValue = GetLast();
-            Append(lastValue);
-
-            for (int logicalIndex = oldLength; logicalIndex > index; --logicalIndex) {
-                GetElementAtLogicalIndex(logicalIndex) =
-                    GetElementAtLogicalIndex(logicalIndex - 1);
-            }
-        }
-
-        GetElementAtLogicalIndex(index) = item;
-    }
-
     void PopFront() {
         if (length == 0) {
             throw EmptyCollectionException("Deque: PopFront on empty deque");
         }
 
         if (length == 1) {
-            SetEmptyState(GetMapSize());
+            SetEmptyState(defaultMapSize);
             return;
         }
 
         int leavingSegmentIndex = firstSegment;
+        bool removedFirstSegment = false;
         ++firstIndex;
         if (firstIndex == GetSegmentSize()) {
             firstIndex = 0;
             firstSegment = GetCircularSegmentIndex(firstSegment + 1);
             ClearSegment(leavingSegmentIndex);
+            removedFirstSegment = true;
         }
 
         --length;
+        if (removedFirstSegment) {
+            ShrinkSegmentMap();
+        }
     }
 
     void PopBack() {
@@ -409,7 +368,7 @@ public:
         }
 
         if (length == 1) {
-            SetEmptyState(GetMapSize());
+            SetEmptyState(defaultMapSize);
             return;
         }
 
@@ -418,6 +377,7 @@ public:
         int remainingLastSegmentIndex = GetSegmentIndex(length - 1);
         if (removedSegmentIndex != remainingLastSegmentIndex) {
             ClearSegment(removedSegmentIndex);
+            ShrinkSegmentMap();
         }
     }
 

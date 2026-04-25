@@ -301,15 +301,14 @@ void TestLinkedListSubListAndConcat() {
     delete c;
 }
 
-void TestDequeAppendPrependInsertGet() {
+void TestDequeAppendPrependGet() {
     Deque<int> deque;
     deque.Append(2);
     deque.Append(3);
     deque.Prepend(1);
-    deque.InsertAt(100, 2);
 
-    int expected[4] = {1, 2, 100, 3};
-    AssertIntDequeEquals(deque, expected, 4, "Deque: append/prepend/insert/get");
+    int expected[3] = {1, 2, 3};
+    AssertIntDequeEquals(deque, expected, 3, "Deque: append/prepend/get");
     Assert(deque.GetFirst() == 1, "Deque: wrong first element");
     Assert(deque.GetLast() == 3, "Deque: wrong last element");
 }
@@ -359,13 +358,6 @@ void TestDequeIndexAndEmptyErrors() {
     }
     Assert(caught, "Deque: out-of-range Get must throw");
 
-    caught = false;
-    try {
-        deque.InsertAt(20, 2);
-    } catch (const LabException&) {
-        caught = true;
-    }
-    Assert(caught, "Deque: out-of-range InsertAt must throw");
 }
 
 void TestDequeSegmentBoundaries() {
@@ -405,7 +397,7 @@ void TestDequeSegmentBoundaries() {
     AssertIntDequeEquals(deque, expectedAfterPrepend, 32, "Deque: prepend across segments");
 }
 
-void TestDequeCopyAndInsertAcrossSegments() {
+void TestDequeCopyAcrossSegments() {
     Deque<int> deque;
     for (int i = 0; i < 18; ++i) {
         deque.Append(i);
@@ -418,21 +410,15 @@ void TestDequeCopyAndInsertAcrossSegments() {
         deque.Prepend(i);
     }
 
-    deque.InsertAt(999, 10);
-
-    int expected[19] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 999, 10, 11, 12, 13, 14, 15, 16, 17};
-    AssertIntDequeEquals(deque, expected, 19, "Deque: insert across segments");
+    int expected[18] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
+    AssertIntDequeEquals(deque, expected, 18, "Deque: copy across segments");
 
     Deque<int> copied(deque);
-    AssertIntDequeEquals(copied, expected, 19, "Deque: copy across segments");
+    AssertIntDequeEquals(copied, expected, 18, "Deque: copied values");
 
     Deque<int> assigned;
     assigned = deque;
-    AssertIntDequeEquals(assigned, expected, 19, "Deque: assignment across segments");
-
-    deque.InsertAt(555, 2);
-    int expectedNearFront[20] = {0, 1, 555, 2, 3, 4, 5, 6, 7, 8, 9, 999, 10, 11, 12, 13, 14, 15, 16, 17};
-    AssertIntDequeEquals(deque, expectedNearFront, 20, "Deque: insert near front across segments");
+    AssertIntDequeEquals(assigned, expected, 18, "Deque: assigned values");
 }
 
 void TestDequeMutableAccess() {
@@ -557,8 +543,11 @@ void TestMutableDequeSemantics() {
     Sequence<int>* popped = seq.PopFront();
     Assert(popped == &seq, "MutableDequeSequence: PopFront must return same object");
 
-    int expected[1] = {1};
-    AssertIntSequenceEquals(&seq, expected, 1, "MutableDequeSequence semantics");
+    Sequence<int>* inserted = seq.InsertAt(2, 1);
+    Assert(inserted == &seq, "MutableDequeSequence: InsertAt must return same object");
+
+    int expected[2] = {1, 2};
+    AssertIntSequenceEquals(&seq, expected, 2, "MutableDequeSequence semantics");
 }
 
 void TestImmutableDequeSemantics() {
@@ -571,9 +560,11 @@ void TestImmutableDequeSemantics() {
     ImmutableDequeSequence<int>* immutable = dynamic_cast<ImmutableDequeSequence<int>*>(s1);
     Assert(immutable != nullptr, "ImmutableDequeSequence: wrong runtime type");
 
-    Sequence<int>* s2 = immutable->PopBack();
-    Assert(s1->GetLength() == 1, "ImmutableDequeSequence: previous object changed after PopBack");
-    Assert(s2->GetLength() == 0, "ImmutableDequeSequence: wrong PopBack result");
+    Sequence<int>* s2 = immutable->InsertAt(20, 1);
+    Assert(s1->GetLength() == 1, "ImmutableDequeSequence: previous object changed after InsertAt");
+    Assert(s2->GetLength() == 2, "ImmutableDequeSequence: wrong InsertAt length");
+    Assert(s2->Get(0) == 10 && s2->Get(1) == 20,
+           "ImmutableDequeSequence: wrong InsertAt result");
 
     delete s1;
     delete s2;
@@ -1041,11 +1032,11 @@ bool RunAllTests() {
         {"DynamicArray: string/double storage", TestDynamicArrayStringAndDoubleStorage},
         {"LinkedList: append/prepend/insert/get", TestLinkedListAppendPrependInsertGet},
         {"LinkedList: sublist/concat", TestLinkedListSubListAndConcat},
-        {"Deque: append/prepend/insert/get", TestDequeAppendPrependInsertGet},
+        {"Deque: append/prepend/get", TestDequeAppendPrependGet},
         {"Deque: wrap-around/pop", TestDequeWrapAroundAndPop},
         {"Deque: index and empty errors", TestDequeIndexAndEmptyErrors},
         {"Deque: segment boundaries", TestDequeSegmentBoundaries},
-        {"Deque: copy and insert across segments", TestDequeCopyAndInsertAcrossSegments},
+        {"Deque: copy across segments", TestDequeCopyAcrossSegments},
         {"Deque: mutable access", TestDequeMutableAccess},
         {"SegmentedBuffer: operations", TestSegmentedBufferOperations},
         {"Sequence: abstraction", TestSequenceInterfaceSubsequenceAndConcat},

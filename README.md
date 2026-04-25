@@ -102,7 +102,6 @@ segmentOffsetInside  = linearOffset % segmentSize
 - `Append` — амортизированно `O(1)`
 - `Prepend` — амортизированно `O(1)`
 - `PopFront` / `PopBack` — амортизированно `O(1)`
-- `InsertAt` — `O(min(index, length - index))`
 
 ### Пример
 
@@ -115,9 +114,6 @@ deque.Prepend(5);
 
 deque.PopFront();
 // [10, 20]
-
-deque.InsertAt(15, 1);
-// [10, 15, 20]
 ```
 
 ---

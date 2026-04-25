@@ -22,7 +22,33 @@ protected:
     }
 
     Sequence<T>* InsertAtInternal(const T& item, int index) {
-        data.InsertAt(item, index);
+        int length = data.GetLength();
+        if (index < 0 || index > length) {
+            throw IndexOutOfRangeException("DequeSequenceBase: index out of range in InsertAt");
+        }
+
+        if (index == 0) {
+            data.Prepend(item);
+            return this;
+        }
+
+        if (index == length) {
+            data.Append(item);
+            return this;
+        }
+
+        Deque<T> rebuilt;
+        for (int i = 0; i < index; ++i) {
+            rebuilt.Append(data.Get(i));
+        }
+
+        rebuilt.Append(item);
+
+        for (int i = index; i < length; ++i) {
+            rebuilt.Append(data.Get(i));
+        }
+
+        data = rebuilt;
         return this;
     }
 
