@@ -1,6 +1,8 @@
 #ifndef SEGMENTED_BUFFER_H
 #define SEGMENTED_BUFFER_H
 
+#include <utility>
+
 #include "core/dynamic_array.hpp"
 #include "core/exceptions.hpp"
 
@@ -30,6 +32,26 @@ public:
         DynamicArray<DynamicArray<T>> newSegments(segmentCount);
         segments.Swap(newSegments);
         segmentSize = newSegmentSize;
+    }
+
+    SegmentedBuffer(const SegmentedBuffer<T>& other) = default;
+
+    SegmentedBuffer<T>& operator=(const SegmentedBuffer<T>& other) = default;
+
+    SegmentedBuffer(SegmentedBuffer<T>&& other) noexcept
+        : segments(std::move(other.segments)), segmentSize(other.segmentSize) {
+        other.segmentSize = 0;
+    }
+
+    SegmentedBuffer<T>& operator=(SegmentedBuffer<T>&& other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        segments = std::move(other.segments);
+        segmentSize = other.segmentSize;
+        other.segmentSize = 0;
+        return *this;
     }
 
     int GetSegmentCount() const {
@@ -87,7 +109,7 @@ public:
         return segments[segmentIndex].Data();
     }
 
-    void Swap(SegmentedBuffer<T>& other) {
+    void Swap(SegmentedBuffer<T>& other) noexcept {
         segments.Swap(other.segments);
 
         int tempSegmentSize = segmentSize;

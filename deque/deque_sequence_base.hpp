@@ -1,6 +1,8 @@
 #ifndef DEQUE_SEQUENCE_BASE_H
 #define DEQUE_SEQUENCE_BASE_H
 
+#include <utility>
+
 #include "deque/deque.hpp"
 #include "sequence/sequence.hpp"
 
@@ -16,8 +18,18 @@ protected:
         return this;
     }
 
+    Sequence<T>* AppendInternal(T&& item) {
+        data.Append(std::move(item));
+        return this;
+    }
+
     Sequence<T>* PrependInternal(const T& item) {
         data.Prepend(item);
+        return this;
+    }
+
+    Sequence<T>* PrependInternal(T&& item) {
+        data.Prepend(std::move(item));
         return this;
     }
 
@@ -48,7 +60,38 @@ protected:
             rebuilt.Append(data.Get(i));
         }
 
-        data = rebuilt;
+        data = std::move(rebuilt);
+        return this;
+    }
+
+    Sequence<T>* InsertAtInternal(T&& item, int index) {
+        int length = data.GetLength();
+        if (index < 0 || index > length) {
+            throw IndexOutOfRangeException("DequeSequenceBase: index out of range in InsertAt");
+        }
+
+        if (index == 0) {
+            data.Prepend(std::move(item));
+            return this;
+        }
+
+        if (index == length) {
+            data.Append(std::move(item));
+            return this;
+        }
+
+        Deque<T> rebuilt;
+        for (int i = 0; i < index; ++i) {
+            rebuilt.Append(data.Get(i));
+        }
+
+        rebuilt.Append(std::move(item));
+
+        for (int i = index; i < length; ++i) {
+            rebuilt.Append(data.Get(i));
+        }
+
+        data = std::move(rebuilt);
         return this;
     }
 
@@ -107,7 +150,7 @@ public:
         DequeSequenceBase<T>* target = Instance();
         HeapCleaner<DequeSequenceBase<T>> targetGuard((target == this) ? nullptr : target);
 
-        Sequence<T>* result = target->AppendInternal(item);
+        Sequence<T>* result = target->AppendInternal(std::move(item));
         if (result == target) {
             targetGuard.Release();
         }
@@ -118,7 +161,7 @@ public:
         DequeSequenceBase<T>* target = Instance();
         HeapCleaner<DequeSequenceBase<T>> targetGuard((target == this) ? nullptr : target);
 
-        Sequence<T>* result = target->PrependInternal(item);
+        Sequence<T>* result = target->PrependInternal(std::move(item));
         if (result == target) {
             targetGuard.Release();
         }
@@ -129,7 +172,7 @@ public:
         DequeSequenceBase<T>* target = Instance();
         HeapCleaner<DequeSequenceBase<T>> targetGuard((target == this) ? nullptr : target);
 
-        Sequence<T>* result = target->InsertAtInternal(item, index);
+        Sequence<T>* result = target->InsertAtInternal(std::move(item), index);
         if (result == target) {
             targetGuard.Release();
         }

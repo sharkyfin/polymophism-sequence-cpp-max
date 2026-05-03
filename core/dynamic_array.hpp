@@ -1,6 +1,8 @@
 #ifndef DYNAMIC_ARRAY_H
 #define DYNAMIC_ARRAY_H
 
+#include <utility>
+
 #include "core/exceptions.hpp"
 #include "core/ienumerator.hpp"
 
@@ -26,7 +28,7 @@ private:
             int copyCount = (size < newCapacity) ? size : newCapacity;
             try {
                 for (int i = 0; i < copyCount; ++i) {
-                    newData[i] = data[i];
+                    newData[i] = std::move_if_noexcept(data[i]);
                 }
             } catch (...) {
                 delete[] newData;
@@ -134,6 +136,13 @@ public:
         }
     }
 
+    DynamicArray(DynamicArray<T>&& other) noexcept
+        : data(other.data), size(other.size), capacity(other.capacity) {
+        other.data = nullptr;
+        other.size = 0;
+        other.capacity = 0;
+    }
+
     DynamicArray<T>& operator=(const DynamicArray<T>& other) {
         if (this == &other) {
             return *this;
@@ -156,6 +165,22 @@ public:
         data = newData;
         size = other.size;
         capacity = other.capacity;
+        return *this;
+    }
+
+    DynamicArray<T>& operator=(DynamicArray<T>&& other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        delete[] data;
+        data = other.data;
+        size = other.size;
+        capacity = other.capacity;
+
+        other.data = nullptr;
+        other.size = 0;
+        other.capacity = 0;
         return *this;
     }
 
@@ -212,7 +237,14 @@ public:
         data[index] = value;
     }
 
-    void Swap(DynamicArray<T>& other) {
+    void Set(int index, T&& value) {
+        if (index < 0 || index >= size) {
+            throw IndexOutOfRangeException("DynamicArray: index out of range");
+        }
+        data[index] = std::move(value);
+    }
+
+    void Swap(DynamicArray<T>& other) noexcept {
         T* tempData = data;
         data = other.data;
         other.data = tempData;
@@ -233,6 +265,16 @@ public:
         }
 
         data[size] = value;
+        ++size;
+    }
+
+    void PushBack(T&& value) {
+        if (size == capacity) {
+            int newCapacity = (capacity == 0) ? 1 : capacity * 2;
+            Reallocate(newCapacity);
+        }
+
+        data[size] = std::move(value);
         ++size;
     }
 

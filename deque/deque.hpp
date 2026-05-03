@@ -1,6 +1,8 @@
 #ifndef DEQUE_H
 #define DEQUE_H
 
+#include <utility>
+
 #include "core/segmented_buffer.hpp"
 #include "core/exceptions.hpp"
 #include "core/ienumerator.hpp"
@@ -81,6 +83,12 @@ private:
         buffer.ClearSegment(segmentIndex);
     }
 
+    void EnsureStorageReady() {
+        if (GetMapSize() == 0 || GetSegmentSize() == 0) {
+            SetEmptyState(defaultMapSize);
+        }
+    }
+
     void SetEmptyState(int newMapSize) {
         if (newMapSize <= 0) {
             throw InvalidArgumentException("Deque: invalid map size");
@@ -149,6 +157,8 @@ private:
     }
 
     void EnsureMapForAppend() {
+        EnsureStorageReady();
+
         bool appendNeedsNewSegment = length > 0 && GetSegmentOffset(length) == 0;
         while (appendNeedsNewSegment && GetUsedSegmentCount() == GetMapSize()) {
             GrowSegmentMap();
@@ -159,6 +169,8 @@ private:
     }
 
     void EnsureMapForPrepend() {
+        EnsureStorageReady();
+
         bool prependNeedsNewSegment = length > 0 && firstIndex == 0;
         if (!prependNeedsNewSegment) {
             return;
@@ -172,7 +184,35 @@ private:
         AllocateSegment(prependSegmentIndex);
     }
 
-    void Swap(Deque<T>& other) {
+    T& GetAppendSlot() {
+        EnsureMapForAppend();
+
+        int writeSegmentIndex = firstSegment;
+        int writeSegmentOffset = firstIndex;
+        if (length > 0) {
+            writeSegmentIndex = GetSegmentIndex(length);
+            writeSegmentOffset = GetSegmentOffset(length);
+        }
+
+        return buffer.GetSegment(writeSegmentIndex)[writeSegmentOffset];
+    }
+
+    T& GetPrependSlot() {
+        EnsureMapForPrepend();
+
+        if (length > 0) {
+            if (firstIndex == 0) {
+                firstSegment = GetCircularSegmentIndex(firstSegment - 1);
+                firstIndex = GetSegmentSize() - 1;
+            } else {
+                --firstIndex;
+            }
+        }
+
+        return buffer.GetSegment(firstSegment)[firstIndex];
+    }
+
+    void Swap(Deque<T>& other) noexcept {
         buffer.Swap(other.buffer);
 
         int tempFirstSegment = firstSegment;
@@ -248,7 +288,33 @@ public:
 
     Deque(const Deque<T>& other) = default;
 
+    Deque(Deque<T>&& other) noexcept
+        : buffer(std::move(other.buffer)),
+          firstSegment(other.firstSegment),
+          firstIndex(other.firstIndex),
+          length(other.length) {
+        other.firstSegment = 0;
+        other.firstIndex = 0;
+        other.length = 0;
+    }
+
     Deque<T>& operator=(const Deque<T>& other) = default;
+
+    Deque<T>& operator=(Deque<T>&& other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        buffer = std::move(other.buffer);
+        firstSegment = other.firstSegment;
+        firstIndex = other.firstIndex;
+        length = other.length;
+
+        other.firstSegment = 0;
+        other.firstIndex = 0;
+        other.length = 0;
+        return *this;
+    }
 
     const T& GetFirst() const {
         if (length == 0) {
@@ -293,6 +359,10 @@ public:
         Get(index) = item;
     }
 
+    void Set(int index, T&& item) {
+        Get(index) = std::move(item);
+    }
+
     void SwapElements(int first, int second) {
         CheckIndex(first);
         CheckIndex(second);
@@ -301,38 +371,28 @@ public:
             return;
         }
 
-        T temporary = Get(first);
-        Set(first, Get(second));
-        Set(second, temporary);
+        T temporary = std::move(Get(first));
+        Set(first, std::move(Get(second)));
+        Set(second, std::move(temporary));
     }
 
     void Append(const T& item) {
-        EnsureMapForAppend();
+        GetAppendSlot() = item;
+        ++length;
+    }
 
-        int writeSegmentIndex = firstSegment;
-        int writeSegmentOffset = firstIndex;
-        if (length > 0) {
-            writeSegmentIndex = GetSegmentIndex(length);
-            writeSegmentOffset = GetSegmentOffset(length);
-        }
-
-        buffer.GetSegment(writeSegmentIndex)[writeSegmentOffset] = item;
+    void Append(T&& item) {
+        GetAppendSlot() = std::move(item);
         ++length;
     }
 
     void Prepend(const T& item) {
-        EnsureMapForPrepend();
+        GetPrependSlot() = item;
+        ++length;
+    }
 
-        if (length > 0) {
-            if (firstIndex == 0) {
-                firstSegment = GetCircularSegmentIndex(firstSegment - 1);
-                firstIndex = GetSegmentSize() - 1;
-            } else {
-                --firstIndex;
-            }
-        }
-
-        buffer.GetSegment(firstSegment)[firstIndex] = item;
+    void Prepend(T&& item) {
+        GetPrependSlot() = std::move(item);
         ++length;
     }
 

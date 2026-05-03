@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "core/dynamic_array.hpp"
 #include "deque/deque.hpp"
@@ -419,6 +420,20 @@ void TestDequeCopyAcrossSegments() {
     Deque<int> assigned;
     assigned = deque;
     AssertIntDequeEquals(assigned, expected, 18, "Deque: assigned values");
+
+    Deque<int> moved(std::move(copied));
+    AssertIntDequeEquals(moved, expected, 18, "Deque: move constructed values");
+    copied.Append(100);
+    Assert(copied.GetLength() == 1 && copied.Get(0) == 100,
+           "Deque: moved-from object must be reusable after move construction");
+
+    Deque<int> moveAssigned;
+    moveAssigned.Append(-1);
+    moveAssigned = std::move(moved);
+    AssertIntDequeEquals(moveAssigned, expected, 18, "Deque: move assigned values");
+    moved.Append(200);
+    Assert(moved.GetLength() == 1 && moved.Get(0) == 200,
+           "Deque: moved-from object must be reusable after move assignment");
 }
 
 void TestDequeMutableAccess() {
@@ -433,6 +448,15 @@ void TestDequeMutableAccess() {
 
     double expected[3] = {30.0, 20.0, 1.0};
     AssertDoubleDequeNear(deque, expected, 3, 1e-9, "Deque mutable access");
+
+    Deque<std::string> words;
+    std::string middle = "middle";
+    words.Append(std::move(middle));
+    words.Prepend(std::string("first"));
+    words.Set(1, std::string("last"));
+
+    Assert(words.Get(0) == "first" && words.Get(1) == "last",
+           "Deque: rvalue append/prepend/set for strings");
 }
 
 void TestSegmentedBufferOperations() {

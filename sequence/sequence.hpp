@@ -2,6 +2,7 @@
 #define SEQUENCE_H
 
 #include <iostream>
+#include <utility>
 
 #include "core/dynamic_array.hpp"
 #include "core/heap_cleaner.hpp"
@@ -13,6 +14,14 @@ class Sequence : public ICollection<T> {
 protected:
     void AppendToResult(Sequence<T>*& sequence, const T& item) const {
         Sequence<T>* next = sequence->Append(item);
+        if (next != sequence) {
+            delete sequence;
+            sequence = next;
+        }
+    }
+
+    void AppendToResult(Sequence<T>*& sequence, T&& item) const {
+        Sequence<T>* next = sequence->Append(std::move(item));
         if (next != sequence) {
             delete sequence;
             sequence = next;
@@ -246,7 +255,7 @@ Sequence<T>* operator+(const Sequence<T>& left, const Sequence<T>& right) {
 template <class T>
 Sequence<T>* operator+(const Sequence<T>& sequence, T item) {
     HeapCleaner<Sequence<T>> result(sequence.Clone());
-    Sequence<T>* next = result->Append(item);
+    Sequence<T>* next = result->Append(std::move(item));
     if (next != result.Get()) {
         result.Reset(next);
     }
