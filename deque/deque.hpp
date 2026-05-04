@@ -97,7 +97,7 @@ private:
         int newSegmentSize = (buffer.GetSegmentSize() > 0) ? buffer.GetSegmentSize() : defaultSegmentSize;
         SegmentedBuffer<T> newBuffer(newMapSize, newSegmentSize);
         buffer.Swap(newBuffer);
-        firstSegment = 0;
+        firstSegment = newMapSize / 2;
         firstIndex = GetSegmentSize() / 2;
         length = 0;
         AllocateSegment(firstSegment);
@@ -345,6 +345,60 @@ public:
 
     int GetLength() const {
         return length;
+    }
+
+    int DebugGetMapSize() const {
+        return GetMapSize();
+    }
+
+    int DebugGetSegmentSize() const {
+        return GetSegmentSize();
+    }
+
+    int DebugGetFirstSegment() const {
+        return firstSegment;
+    }
+
+    int DebugGetFirstIndex() const {
+        return firstIndex;
+    }
+
+    bool DebugHasSegment(int segmentIndex) const {
+        return buffer.HasSegment(segmentIndex);
+    }
+
+    const T& DebugGetRawCell(int segmentIndex, int offset) const {
+        if (offset < 0 || offset >= GetSegmentSize()) {
+            throw IndexOutOfRangeException("Deque: debug cell offset out of range");
+        }
+
+        return buffer.GetSegment(segmentIndex)[offset];
+    }
+
+    int DebugGetLogicalIndex(int segmentIndex, int offset) const {
+        int mapSize = GetMapSize();
+        int segmentSize = GetSegmentSize();
+        if (mapSize <= 0 || segmentSize <= 0 || length == 0 ||
+            segmentIndex < 0 || segmentIndex >= mapSize ||
+            offset < 0 || offset >= segmentSize) {
+            return -1;
+        }
+
+        int segmentOffset = segmentIndex - firstSegment;
+        if (segmentOffset < 0) {
+            segmentOffset += mapSize;
+        }
+
+        int logicalIndex = segmentOffset * segmentSize + offset - firstIndex;
+        if (logicalIndex < 0 || logicalIndex >= length) {
+            return -1;
+        }
+
+        return logicalIndex;
+    }
+
+    bool DebugIsActiveCell(int segmentIndex, int offset) const {
+        return DebugGetLogicalIndex(segmentIndex, offset) >= 0;
     }
 
     T& operator[](int index) {
