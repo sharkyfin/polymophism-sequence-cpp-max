@@ -1,9 +1,38 @@
-# GUI
-
-Для запуска визуализатора `Deque` и матриц:
+# Сборка
 
 ```bash
-make run-gui
+cmake -S . -B build
+cmake --build build
+```
+
+```bash
+cmake --build build --target main
+cmake --build build --target tests
+cmake --build build --target gui
+```
+
+Тесты:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+Запуск:
+
+```bash
+./build/main
+./build/gui
+```
+
+Windows:
+
+```bat
+cmake --build build --config Debug --target main
+cmake --build build --config Debug --target tests
+cmake --build build --config Debug --target gui
+ctest --test-dir build -C Debug --output-on-failure
+build\Debug\main.exe
+build\Debug\gui.exe
 ```
 
 # Архитектура `Deque` и матриц
@@ -56,7 +85,7 @@ Sequence<T>
 
 ## `SegmentedBuffer<T>`
 
-Файл: [segmented_buffer.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/core/segmented_buffer.hpp)
+Файл: [segmented_buffer.hpp](core/segmented_buffer.hpp)
 
 Хранит:
 
@@ -76,7 +105,7 @@ Sequence<T>
 
 ## `Deque<T>`
 
-Файл: [deque.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/deque/deque.hpp)
+Файл: [deque.hpp](deque/deque.hpp)
 
 Хранит:
 
@@ -128,7 +157,7 @@ deque.PopFront();
 
 ## `RectangularMatrix<T>`
 
-Файл: [rectangular_matrix.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/matrix/rectangular_matrix.hpp)
+Файл: [rectangular_matrix.hpp](matrix/rectangular_matrix.hpp)
 
 Хранит:
 
@@ -160,7 +189,7 @@ matrix[1][2] = 6.0;
 
 ## `SquareMatrix<T>`
 
-Файл: [square_matrix.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/matrix/square_matrix.hpp)
+Файл: [square_matrix.hpp](matrix/square_matrix.hpp)
 
 ```cpp
 class SquareMatrix : public RectangularMatrix<T>
@@ -176,7 +205,7 @@ class SquareMatrix : public RectangularMatrix<T>
 
 ## `TriangularMatrix<T>`
 
-Файл: [special_matrices.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/matrix/special_matrices.hpp)
+Файл: [special_matrices.hpp](matrix/special_matrices.hpp)
 
 Использует composition:
 
@@ -200,7 +229,7 @@ T zero;
 
 ## `DiagonalMatrix<T>`
 
-Файл: [special_matrices.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/matrix/special_matrices.hpp)
+Файл: [special_matrices.hpp](matrix/special_matrices.hpp)
 
 Использует composition:
 
@@ -220,8 +249,8 @@ T zero;
 
 Файлы:
 
-- [matrix_algorithms.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/matrix/matrix_algorithms.hpp)
-- [matrix_solvers.hpp](/Users/eugenytokmakov/Desktop/programming/cpp/polymophism-sequence-cpp-max/matrix/matrix_solvers.hpp)
+- [matrix_algorithms.hpp](matrix/matrix_algorithms.hpp)
+- [matrix_solvers.hpp](matrix/matrix_solvers.hpp)
 
 используются указатели на строки:
 

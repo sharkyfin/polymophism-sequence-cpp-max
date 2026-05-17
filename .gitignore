@@ -1,4 +1,2 @@
 /build/*
-/third_party/imgui/
-/third_party/glfw/
 /imgui.ini
